@@ -40,8 +40,8 @@ void list(int fd)
 		close(fd);
 		exit(0);
 	}
-		printf("%s",&buff[HEADER_LENGTH]);
-		free(buff);
+	printf("%s",&buff[HEADER_LENGTH]);
+	free(buff);
 }
 
 //to download file from server
