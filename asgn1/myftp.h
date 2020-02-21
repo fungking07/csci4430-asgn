@@ -21,6 +21,7 @@ struct message_s{
 
 void set_protocol(struct message_s *protocol, unsigned char type, unsigned int length);
 
+// return action code
 int type_to_int(struct message_s protocol, unsigned int len);
 
 int sendn(int sd,void *buf,int len);
