@@ -19,7 +19,8 @@ void set_protocol(struct message_s *protocol, unsigned char type, unsigned int l
 	protocol->length=ntohl(len);
 }
 
-//change type into integer that can compare
+// check protocol
+// return the type of action
 int type_to_int(struct message_s protocol,unsigned int len)
 {
 	if((strncmp(protocol.protocol,"myftp",5)==0)&&(protocol.length==ntohl(len)))
