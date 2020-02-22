@@ -12,6 +12,8 @@
 #include <errno.h>
 #include "myftp.h"
 
+#define PATH "./data/"
+
 int accept_client(int fd, struct sockaddr *__restrict__ addr){
     int addr_len = sizeof(addr);
     int client_sd;
@@ -50,6 +52,38 @@ int receive_msg(int sd, char** data){
 }
 
 int list(int fd){
+    char* buff = (char*)malloc(BUFF_SIZE);
+    DIR* curr_dir = opendir(PATH);
+    if(curr_dir == NULL){
+        printf("cannot open directory error");
+        exit(-1);
+    }
+    // struct dirent {
+    //     ino_t          d_ino;       /* Inode number */
+    //     off_t          d_off;       /* Not an offset; see below */
+    //     unsigned short d_reclen;    /* Length of this record */
+    //     unsigned char  d_type;      /* Type of file; not supported
+    //                                     by all filesystem types */
+    //     char           d_name[256]; /* Null-terminated filename */
+    // };
+    struct message_s msg;
+    int payload = 0;
+    struct dirent* folder = NULL;
+    while((folder = readdir(curr_dir)) != NULL){
+        if(strcmp(folder->d_name, ".") != 0 && strcmp(folder->d_name, "..") != 0){
+            strcpy(&buff[HEADER_LENGTH + payload], folder->d_name);
+            payload += strlen(folder->d_name)+1;
+            strcpy(&buff[HEADER_LENGTH + payload - 1], "\n");
+        }
+    }
+    printf("%d\n", payload);
+    closedir(curr_dir);
+    set_protocol(&msg, 0xA2, HEADER_LENGTH + payload);
+    for(int i = 0; i < payload+HEADER_LENGTH;i++)printf("%c", buff[i]);
+    memcpy(buff, &msg, HEADER_LENGTH);
+    if(send(fd, buff, HEADER_LENGTH+payload, 0) == -1){
+        printf("list error");
+    }
     return 1;
 }
 int send_file(int fd, char* file){
