@@ -266,4 +266,5 @@ int main(int argc,char **argv)
 			break;
 	}
 	close(fd);
+	return 0;
 }
