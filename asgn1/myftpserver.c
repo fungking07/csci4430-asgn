@@ -24,8 +24,8 @@ int accept_client(int fd, struct sockaddr *__restrict__ addr){
 }
 
 int receive_msg(int sd, char** data){
-    char* buff = (char*)malloc(sizeof(char)*BUFF_SIZE);
-    memset(buff, '\0', sizeof(char)*BUFF_SIZE);
+    char* buff = (char*)malloc(BUFF_SIZE);
+    memset(buff, '\0', BUFF_SIZE);
     struct message_s msg;
     int len;
     if((len = recv(sd, buff, BUFF_SIZE, 0)) < 0){
@@ -33,29 +33,26 @@ int receive_msg(int sd, char** data){
         exit(0);
     }
     memcpy(&msg, buff, HEADER_LENGTH);
-    printf("name size %d\n", ntohl(msg.length) - HEADER_LENGTH);
-    printf("protocol: %s type: %d len: %d\n", msg.protocol, msg.type, ntohl(msg.length));
     int action = type_to_int(msg, len);
-    printf("%d\n", action);
     if(action == -1){
         printf("protocol error: %s (Errno:%d)\n", strerror(errno),errno);
         exit(-1);
     }
     if(action != LIST_REQUEST){
         int filename_length = ntohl(msg.length) - HEADER_LENGTH;
-        printf("===%d\n", filename_length);
         *data = (char*)malloc(sizeof(char) * filename_length);
-        memcpy(*data, buff + HEADER_LENGTH, sizeof(buff));
-        //printf("%s", *data);
+        memset(*data, '\0', sizeof(char) * filename_length);
+        memcpy(*data, buff + HEADER_LENGTH, filename_length);
     }
+    free(buff);
     return action;
 }
 
-int list(int fd){
+void list(int fd){
     char* buff = (char*)malloc(BUFF_SIZE);
     DIR* curr_dir = opendir(PATH);
     if(curr_dir == NULL){
-        printf("cannot open directory error");
+        printf("cannot open directory ./data/\n");
         exit(-1);
     }
     // struct dirent {
@@ -79,15 +76,71 @@ int list(int fd){
     printf("%d\n", payload);
     closedir(curr_dir);
     set_protocol(&msg, 0xA2, HEADER_LENGTH + payload);
-    for(int i = 0; i < payload+HEADER_LENGTH;i++)printf("%c", buff[i]);
     memcpy(buff, &msg, HEADER_LENGTH);
-    if(send(fd, buff, HEADER_LENGTH+payload, 0) == -1){
-        printf("list error");
+    if(send(fd, buff, HEADER_LENGTH + payload, 0) == -1){
+        printf("list error\n");
+        exit(-1);
     }
-    return 1;
+    free(buff);
 }
-int send_file(int fd, char* file){
-    return 1;
+void send_file(int fd, char* file){
+    char *file_path = (char*)malloc(strlen(PATH) + strlen(file) + 1);
+    memset(file_path, '\0', strlen(PATH) + strlen(file) + 1);
+    memcpy(file_path, &PATH, sizeof(PATH));
+    memcpy(file_path + strlen(PATH), file, strlen(file));
+    char *buff = (char*)malloc(BUFF_SIZE);
+    memset(buff, '\0', sizeof(buff));
+    struct message_s msg;
+    int len = 0;
+    FILE *fp = fopen(file_path, "r");
+    if(fp == NULL){
+        printf("cannot open requested file\n");
+        set_protocol(&msg, 0xB3, HEADER_LENGTH);
+        memcpy(buff, &msg, HEADER_LENGTH);
+        if(send(fd, buff, HEADER_LENGTH, 0) == -1){
+            printf("sent protocol error\n");
+        }
+        free(buff);
+        return;
+    }
+    else{
+        // read file size
+        fseek(fp, 0, SEEK_END);
+        long int total_file_size = ftell(fp);
+        printf("%s\n", file_path);
+        fseek(fp, 0, SEEK_SET);
+        len = HEADER_LENGTH + strlen(file) + 1;
+        
+        set_protocol(&msg, 0xB2, HEADER_LENGTH);
+        memset(buff, '\0', sizeof(buff));
+        memcpy(buff, &msg, HEADER_LENGTH);
+        if(send(fd, buff, HEADER_LENGTH, 0) == -1){
+            printf("sent protocol error\n");
+        }
+
+        set_protocol(&msg, 0xFF, HEADER_LENGTH + total_file_size);
+        memset(buff, '\0', sizeof(buff));
+        memcpy(buff, &msg, HEADER_LENGTH);
+        if(send(fd, buff, HEADER_LENGTH, 0) == -1){
+            printf("sent protocol error\n");
+        }
+        char *file_data = (char*)malloc(CHUNK_SIZE);
+        int read_file_size = 0;
+        if((read_file_size = fread(file_data, 1, CHUNK_SIZE, fp)) > 0){
+            //for(int i=0;i<total_file_size;i++)printf("%c", file_data[i]);
+            if(sendn(fd, file_data, read_file_size) < 0){
+                fclose(fp);
+                close(fd);
+                printf("send file error\n");
+            }
+        }
+        printf("sent\n");
+        free(file_data);
+    }
+
+    fclose(fp);
+    free(buff);
+    free(file_path);
 }
 int receive_file(int fd, char* file){
     return 1;
@@ -119,7 +172,6 @@ int main(int argc, char** argv){
         buff=(char*)malloc(sizeof(char)*BUFF_SIZE);
         memset(buff,'\0',sizeof(char)*BUFF_SIZE);
         int code = receive_msg(client_sd, &buff);
-        printf("%s\n", buff);
         switch(code){
             case LIST_REQUEST:
                 printf("list\n");
