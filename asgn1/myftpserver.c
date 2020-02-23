@@ -108,8 +108,7 @@ void send_file(int fd, char* file){
         fseek(fp, 0, SEEK_END);
         long int total_file_size = ftell(fp);
         printf("%s\n", file_path);
-        fseek(fp, 0, SEEK_SET);
-        len = HEADER_LENGTH + strlen(file) + 1;
+        fseek(fp, 0, SEEK_SET); // return to top
         
         set_protocol(&msg, 0xB2, HEADER_LENGTH);
         memset(buff, '\0', sizeof(buff));
@@ -127,7 +126,6 @@ void send_file(int fd, char* file){
         char *file_data = (char*)malloc(CHUNK_SIZE);
         int read_file_size = 0;
         if((read_file_size = fread(file_data, 1, CHUNK_SIZE, fp)) > 0){
-            //for(int i=0;i<total_file_size;i++)printf("%c", file_data[i]);
             if(sendn(fd, file_data, read_file_size) < 0){
                 fclose(fp);
                 close(fd);
@@ -142,8 +140,51 @@ void send_file(int fd, char* file){
     free(buff);
     free(file_path);
 }
-int receive_file(int fd, char* file){
-    return 1;
+void receive_file(int fd, char* file){
+    char *buff = (char*)malloc(BUFF_SIZE);
+    memset(buff, '\0', sizeof(buff));
+    struct message_s msg;
+    set_protocol(&msg, 0xC2, HEADER_LENGTH);
+    memcpy(buff, &msg, HEADER_LENGTH);
+    if(send(fd, buff, HEADER_LENGTH, 0) < 0){
+        printf("cannot sent put reply\n");
+        exit(-1);
+    }
+
+    memset(buff, '\0', sizeof(buff));
+    if(recv(fd, &msg, HEADER_LENGTH, 0) < 0){
+        printf("file protocol error\n");
+        exit(-1);
+    }
+    int len = ntohl(msg.length) - HEADER_LENGTH;
+
+
+    char *file_path = (char*)malloc(strlen(PATH) + strlen(file) + 1);
+    memset(file_path, '\0', strlen(PATH) + strlen(file) + 1);
+    memcpy(file_path, &PATH, sizeof(PATH));
+    memcpy(file_path + strlen(PATH), file, strlen(file));
+
+    FILE *fp = fopen(file_path, "wb");
+    char *file_data = (char*)malloc(CHUNK_SIZE);
+    memset(file_data, '\0', CHUNK_SIZE);
+    int data_len;
+    if(type_to_int(msg, HEADER_LENGTH + len) == FILE_DATA){
+        if((data_len = recvn(fd, file_data, len)) >= 0){
+            fwrite(file_data, 1, data_len, fp);
+        }
+        else{
+            printf("receive data error\n");
+            exit(-1);
+        }
+    }
+    else{
+        printf("file data protocol error\n");
+        exit(-1);
+    }
+    fclose(fp);
+    free(file_data);
+    free(file_path);
+    free(buff);
 }
 
 int main(int argc, char** argv){
