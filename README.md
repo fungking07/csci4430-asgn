@@ -7,9 +7,11 @@
 
 | Assignment | Weight | Release Date | Due Date | 
 | -----------| ------ | ------------ | -------- |
-| 1          | 15%    | 13/1         | 13/2     |
-| 2          | 15%    | 17/2         | 19/3     |
-| 3          | 15%    | 16/3         | ?/5      |
+| 1          | 15%    | 13/1         | 27/2     |
+| 2          | 15%    | 28/2         | 26/3     |
+| 3          | 15%    | 27/3         | 14/5     |
+
+Assignment 1: Multi-Client File Transfer Application
 
 ## Submission Instructions
 
@@ -21,7 +23,3 @@ Warning: Do NOT change the file names; otherwise you will get zero marks.
 - Feng Haolin
 - Lam King Fung
 - Lee Tsz Yan
-
-## Git command to start a repo
-> `git init`  
-> `git remote add origin https://github.com/fungking07/CSCI4430-Asgns.git`  
