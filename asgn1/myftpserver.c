@@ -165,8 +165,8 @@ void receive_file(int fd, char* file){
     memcpy(file_path + strlen(PATH), file, strlen(file));
 
     FILE *fp = fopen(file_path, "wb");
-    char *file_data = (char*)malloc(CHUNK_SIZE);
-    memset(file_data, '\0', CHUNK_SIZE);
+    char *file_data = (char*)malloc(MAX_SIZE);
+    memset(file_data, '\0', MAX_SIZE);
     int data_len;
     if(type_to_int(msg, HEADER_LENGTH + len) == FILE_DATA){
         if((data_len = recvn(fd, file_data, len)) >= 0){
