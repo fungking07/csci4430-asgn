@@ -28,9 +28,13 @@ int receive_msg(int sd, char** data){
     memset(buff, '\0', BUFF_SIZE);
     struct message_s msg;
     int len;
-    if((len = recv(sd, buff, BUFF_SIZE, 0)) < 0){
+    if((len = recv(sd, buff, BUFF_SIZE, 0)) == -1){
         printf("receive error: %s (Errno:%d)\n", strerror(errno),errno);
         exit(0);
+    }
+    if(len == 0){
+        printf("no\n");
+        return PUT_FILE_NOT_EXIST;
     }
     memcpy(&msg, buff, HEADER_LENGTH);
     int action = type_to_int(msg, len);
@@ -230,6 +234,9 @@ int main(int argc, char** argv){
             case PUT_REQUEST:
                 printf("put file\n");
                 receive_file(client_sd, buff);
+                break;
+            case PUT_FILE_NOT_EXIST:
+                printf("nothing to do\n");
                 break;
             default:
                 printf("receive code error: %s (Errno:%d)\n", strerror(errno), errno);
