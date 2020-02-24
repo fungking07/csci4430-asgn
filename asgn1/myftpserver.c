@@ -36,7 +36,7 @@ int receive_msg(int sd, char** data){
     int action = type_to_int(msg, len);
     if(action == -1){
         printf("protocol error: %s (Errno:%d)\n", strerror(errno),errno);
-        exit(-1);
+        exit(0);
     }
     if(action != LIST_REQUEST){
         int filename_length = ntohl(msg.length) - HEADER_LENGTH;
@@ -53,7 +53,7 @@ void list(int fd){
     DIR* curr_dir = opendir(PATH);
     if(curr_dir == NULL){
         printf("cannot open directory ./data/\n");
-        exit(-1);
+        exit(0);
     }
     // struct dirent {
     //     ino_t          d_ino;       /* Inode number */
@@ -79,7 +79,7 @@ void list(int fd){
     memcpy(buff, &msg, HEADER_LENGTH);
     if(send(fd, buff, HEADER_LENGTH + payload, 0) == -1){
         printf("list error\n");
-        exit(-1);
+        exit(0);
     }
     free(buff);
 }
@@ -99,6 +99,7 @@ void send_file(int fd, char* file){
         memcpy(buff, &msg, HEADER_LENGTH);
         if(send(fd, buff, HEADER_LENGTH, 0) == -1){
             printf("sent protocol error\n");
+            exit(0);
         }
         free(buff);
         return;
@@ -115,6 +116,7 @@ void send_file(int fd, char* file){
         memcpy(buff, &msg, HEADER_LENGTH);
         if(send(fd, buff, HEADER_LENGTH, 0) == -1){
             printf("sent protocol error\n");
+            exit(0);
         }
 
         set_protocol(&msg, 0xFF, HEADER_LENGTH + total_file_size);
@@ -122,6 +124,7 @@ void send_file(int fd, char* file){
         memcpy(buff, &msg, HEADER_LENGTH);
         if(send(fd, buff, HEADER_LENGTH, 0) == -1){
             printf("sent protocol error\n");
+            exit(0);
         }
         char *file_data = (char*)malloc(CHUNK_SIZE);
         int read_file_size = 0;
@@ -130,6 +133,7 @@ void send_file(int fd, char* file){
                 fclose(fp);
                 close(fd);
                 printf("send file error\n");
+                exit(0);
             }
         }
         printf("sent\n");
@@ -148,13 +152,13 @@ void receive_file(int fd, char* file){
     memcpy(buff, &msg, HEADER_LENGTH);
     if(send(fd, buff, HEADER_LENGTH, 0) < 0){
         printf("cannot sent put reply\n");
-        exit(-1);
+        exit(0);
     }
 
     memset(buff, '\0', sizeof(buff));
     if(recv(fd, &msg, HEADER_LENGTH, 0) < 0){
         printf("file protocol error\n");
-        exit(-1);
+        exit(0);
     }
     int len = ntohl(msg.length) - HEADER_LENGTH;
 
@@ -174,12 +178,12 @@ void receive_file(int fd, char* file){
         }
         else{
             printf("receive data error\n");
-            exit(-1);
+            exit(0);
         }
     }
     else{
         printf("file data protocol error\n");
-        exit(-1);
+        exit(0);
     }
     fclose(fp);
     free(file_data);
@@ -190,6 +194,7 @@ void receive_file(int fd, char* file){
 int main(int argc, char** argv){
     if(argc != 2){
         printf("Invalid command!\n");
+        exit(0);
     }
 	int sd=socket(AF_INET,SOCK_STREAM,0);
     char* buff;
@@ -228,7 +233,7 @@ int main(int argc, char** argv){
                 break;
             default:
                 printf("receive code error: %s (Errno:%d)\n", strerror(errno), errno);
-                exit(-1);
+                exit(0);
         }
         free(buff);
         close(client_sd);
