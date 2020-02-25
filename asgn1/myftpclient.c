@@ -166,7 +166,7 @@ void upload(int fd,char* filename)
 	fseek(fp,0,SEEK_SET);
 	fclose(fp);
 	set_protocol(&data,0xFF,HEADER_LENGTH+file_payload);
-	if((len_s=send(fd,(void*)&data,HEADER_LENGTH+file_payload,0))==-1)
+	if((len_s=send(fd,(void*)&data,HEADER_LENGTH,0))==-1)
 	{
 		printf("Fail on FILE_DATA_PROTOCOL\n");
 		close(fd);

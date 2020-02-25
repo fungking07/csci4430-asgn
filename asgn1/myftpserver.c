@@ -9,6 +9,7 @@
 #include <netinet/in.h>	// "struct sockaddr_in"
 #include <arpa/inet.h>	// "in_addr_t"
 #include <dirent.h>  // struct dirent *readdir(DIR *dirp);
+#include <pthread.h>
 #include <errno.h>
 #include "myftp.h"
 
@@ -22,6 +23,7 @@ int accept_client(int fd, struct sockaddr *__restrict__ addr){
         exit(0);
     }
     printf("client fd: %d\n", client_sd);
+    printf("fd: %d\n", fd);
     return client_sd;
 }
 
@@ -79,7 +81,6 @@ void list(int fd){
             strcpy(&buff[HEADER_LENGTH + payload - 1], "\n");
         }
     }
-    printf("%d\n", payload);
     closedir(curr_dir);
     set_protocol(&msg, 0xA2, HEADER_LENGTH + payload);
     memcpy(buff, &msg, HEADER_LENGTH);
@@ -153,7 +154,7 @@ void send_file(int fd, char* file){
 void receive_file(int fd, char* file){
     char *buff = (char*)malloc(BUFF_SIZE);
     memset(buff, '\0', sizeof(buff));
-    struct message_s msg;
+    struct message_s msg, msg_file;
     set_protocol(&msg, 0xC2, HEADER_LENGTH);
     memcpy(buff, &msg, HEADER_LENGTH);
     if(send(fd, buff, HEADER_LENGTH, 0) < 0){
@@ -162,12 +163,12 @@ void receive_file(int fd, char* file){
     }
 
     memset(buff, '\0', sizeof(buff));
-    if(recv(fd, &msg, HEADER_LENGTH, 0) < 0){
+    if(recv(fd, buff, HEADER_LENGTH, 0) < 0){
         printf("file protocol error\n");
         exit(0);
     }
-    int len = ntohl(msg.length) - HEADER_LENGTH;
-
+    memcpy(&msg_file, buff, HEADER_LENGTH);
+    int len = ntohl(msg_file.length) - HEADER_LENGTH;
 
     char *file_path = (char*)malloc(strlen(PATH) + strlen(file) + 1);
     memset(file_path, '\0', strlen(PATH) + strlen(file) + 1);
@@ -178,7 +179,7 @@ void receive_file(int fd, char* file){
     char *file_data = (char*)malloc(MAX_SIZE);
     memset(file_data, '\0', MAX_SIZE);
     int data_len;
-    if(type_to_int(msg, HEADER_LENGTH + len) == FILE_DATA){
+    if(type_to_int(msg_file, HEADER_LENGTH + len) == FILE_DATA){
         if((data_len = recvn(fd, file_data, len)) >= 0){
             fwrite(file_data, 1, data_len, fp);
         }
@@ -188,6 +189,7 @@ void receive_file(int fd, char* file){
         }
     }
     else{
+        printf("%d\n", type_to_int(msg_file, HEADER_LENGTH + len));
         printf("file data protocol error\n");
         exit(0);
     }
