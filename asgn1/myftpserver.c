@@ -21,6 +21,8 @@ int accept_client(int fd, struct sockaddr *__restrict__ addr){
         printf("accept error: %s (Errno:%d)\n",strerror(errno),errno);
         exit(0);
     }
+    printf("client fd: %d\n", client_sd);
+    return client_sd;
 }
 
 int receive_msg(int sd, char** data){
@@ -217,6 +219,7 @@ int main(int argc, char** argv){
 		printf("listen error: %s (Errno:%d)\n",strerror(errno),errno);
 		exit(0);
 	}
+    printf("I am listening\n");
     while(1){
         client_sd = accept_client(sd, (struct sockaddr *) &client_addr);
         buff=(char*)malloc(sizeof(char)*BUFF_SIZE);
