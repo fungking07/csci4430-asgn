@@ -198,7 +198,7 @@ void upload(int fd,char* filename)
 //main
 int main(int argc,char **argv)
 {
-	int flag;
+	int flag=-1;
 	if(argc<4)
 	{
 		printf("Invalid command!\n");
@@ -210,6 +210,12 @@ int main(int argc,char **argv)
 		{
 			flag=LIST_REQUEST;
 		}
+		else
+		{
+			printf("Invalid command!\n");
+			exit(0);
+		}
+		
 	}
 	else if(argc==5)
 	{
@@ -263,6 +269,9 @@ int main(int argc,char **argv)
 			break;
 		case PUT_REQUEST:
 			upload(fd,argv[4]);
+			break;
+		default:
+			printf("unknown command!\n");
 			break;
 	}
 	close(fd);
