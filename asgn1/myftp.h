@@ -1,3 +1,6 @@
+#ifndef _MYFTP_H_
+#define _MYFTP_H_
+
 #define HEADER_LENGTH 10 //char[5]+char+int=5+1+4
 #define BUFF_SIZE 1024  // default size malloc() to a pointer variable.
 
@@ -28,3 +31,5 @@ int type_to_int(struct message_s protocol, unsigned int len);
 int sendn(int sd,void *buf,int len);
 
 int recvn(int sd,void *buf,int len);
+
+#endif
