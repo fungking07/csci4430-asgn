@@ -13,7 +13,7 @@
 #include <errno.h>
 #include "myftp.h"
 
-#define PATH "./data/"
+#define PATH "data/"
 
 int accept_client(int fd, struct sockaddr *__restrict__ addr){
     int addr_len = sizeof(addr);
@@ -105,7 +105,7 @@ void send_file(int fd, char* file){
         set_protocol(&msg, 0xB3, HEADER_LENGTH);
         memcpy(buff, &msg, HEADER_LENGTH);
         if(send(fd, buff, HEADER_LENGTH, 0) == -1){
-            printf("sent protocol error\n");
+            printf("sent GET_REPLY_NOT_EXITST protocol error\n");
             exit(0);
         }
         free(buff);
@@ -122,26 +122,29 @@ void send_file(int fd, char* file){
         memset(buff, '\0', sizeof(buff));
         memcpy(buff, &msg, HEADER_LENGTH);
         if(send(fd, buff, HEADER_LENGTH, 0) == -1){
-            printf("sent protocol error\n");
+            printf("sent GET_REPLY_EXITST protocol error\n");
             exit(0);
         }
 
         set_protocol(&msg, 0xFF, HEADER_LENGTH + total_file_size);
-        memset(buff, '\0', sizeof(buff));
-        memcpy(buff, &msg, HEADER_LENGTH);
-        if(send(fd, buff, HEADER_LENGTH, 0) == -1){
-            printf("sent protocol error\n");
+        //memset(buff, '\0', sizeof(buff));
+        //memcpy(buff, &msg, HEADER_LENGTH);
+        if((len=send(fd, (void*)&msg, HEADER_LENGTH, 0)) == -1){
+            printf("sent FILE_DATA protocol error\n");
             exit(0);
         }
-        char *file_data = (char*)malloc(CHUNK_SIZE);
+        char *file_data = (char*)malloc(sizeof(char)*MAX_SIZE);
         int read_file_size = 0;
-        if((read_file_size = fread(file_data, 1, CHUNK_SIZE, fp)) > 0){
-            if(sendn(fd, file_data, read_file_size) < 0){
+        int remaining_byte=total_file_size;
+        while((read_file_size = fread(file_data, 1, CHUNK_SIZE, fp)) > 0){
+            if((len=sendn(fd, file_data, read_file_size)) == -1){
                 fclose(fp);
                 close(fd);
                 printf("send file error\n");
                 exit(0);
             }
+            remaining_byte-=read_file_size;
+            printf("remaining %d bytes\n",remaining_byte);
         }
         printf("sent\n");
         free(file_data);
@@ -176,8 +179,14 @@ void receive_file(int fd, char* file){
     memcpy(file_path + strlen(PATH), file, strlen(file));
 
     FILE *fp = fopen(file_path, "wb");
-    char *file_data = (char*)malloc(MAX_SIZE);
-    memset(file_data, '\0', MAX_SIZE);
+    if(fp==NULL)
+    {
+        printf("Fail to create file\n");
+        close(fd);
+        exit(0);
+    }
+    char *file_data = (char*)malloc(MAX_SIZE*sizeof(char));
+    //memset(file_data, '\0', MAX_SIZE*sizeof(char));
     int data_len;
     if(type_to_int(msg_file, HEADER_LENGTH + len) == FILE_DATA){
         if((data_len = recvn(fd, file_data, len)) >= 0){
@@ -211,7 +220,7 @@ int main(int argc, char** argv){
 	struct sockaddr_in client_addr;
 	memset(&server_addr,0,sizeof(server_addr));
 	server_addr.sin_family=AF_INET;
-	server_addr.sin_addr.s_addr=INADDR_ANY;
+	server_addr.sin_addr.s_addr=htonl(INADDR_ANY);
 	server_addr.sin_port=htons(atoi(argv[1]));
 	if(bind(sd, (struct sockaddr *) &server_addr,sizeof(server_addr))<0){
 		printf("bind error: %s (Errno:%d)\n",strerror(errno),errno);
