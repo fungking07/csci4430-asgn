@@ -10,7 +10,8 @@
 #include <arpa/inet.h>	// "in_addr_t"
 #include <errno.h>
 #include "myftp.h"
-
+#include <pthread.h>
+pthread_mutex_t mutex;
 //to list the file on server
 void list(int fd)
 {
@@ -194,7 +195,41 @@ void upload(int fd,char* filename)
 		//printf("bytes left: %d\n",byte_left);
 	}
 }
-
+//this function use pthread to simulate 10 users access to server in the same time
+void *test(void* args)
+{
+	int *thread_num_p = (int *)args;
+  	int thread_num = *thread_num_p;
+	//pthread_mutex_lock(&mutex);
+	printf("this is thread %d\n",thread_num);
+	int fd;
+	unsigned int addrlen=sizeof(struct sockaddr_in);
+	struct sockaddr_in addr;
+	in_addr_t ip=inet_addr("192.168.1.107");
+	unsigned short port=atoi("12345");
+	fd=socket(AF_INET, SOCK_STREAM, 0);
+	if(fd==-1)
+	{
+		perror("socket()");
+		exit(1);
+	}
+	memset(&addr, 0, sizeof(struct sockaddr_in));
+	addr.sin_family = AF_INET;
+	addr.sin_addr.s_addr =ip;
+	addr.sin_port=htons(port);
+	if(connect(fd,(struct sockaddr *)&addr,addrlen)==-1)
+	{
+		perror("connect()");
+		close(fd);
+		exit(0);
+	}
+	printf("now call list()\n");
+	list(fd);
+	printf("finished thread %d\n",thread_num);
+	//pthread_mutex_unlock(&mutex);
+	pthread_exit(NULL);
+	return 0;
+}
 //main
 int main(int argc,char **argv)
 {
@@ -238,6 +273,20 @@ int main(int argc,char **argv)
 		printf("Invalid command!\n");
 		exit(0);
 	}
+	//use for testing multi-threading in server
+	/*pthread_t thread[10];
+	int arg[10];
+  	for (int i = 0; i < 10; i++) {
+    arg[i] = i + 1;
+  	}
+	for(int i=0;i<10;i++)
+	{
+		int val=pthread_create(&thread[i],NULL,test,&arg[i]);
+	}
+	for(int i=0;i<10;i++)
+	{
+		pthread_join(thread[i],NULL);
+	}*/
 	int fd;
 	unsigned int addrlen=sizeof(struct sockaddr_in);
 	struct sockaddr_in addr;
@@ -275,5 +324,6 @@ int main(int argc,char **argv)
 			break;
 	}
 	close(fd);
+	
 	return 0;
 }
