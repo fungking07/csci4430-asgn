@@ -14,6 +14,7 @@
 #include "myftp.h"
 
 #define PATH "data/"
+#define THRED 10
 
 int accept_client(int fd, struct sockaddr *__restrict__ addr){
     int addr_len = sizeof(addr);
@@ -28,6 +29,7 @@ int accept_client(int fd, struct sockaddr *__restrict__ addr){
 }
 
 int receive_msg(int sd, char** data){
+    //printf("checkpoint 1 in receive_msg\n");
     char* buff = (char*)malloc(BUFF_SIZE);
     memset(buff, '\0', BUFF_SIZE);
     struct message_s msg;
@@ -36,6 +38,7 @@ int receive_msg(int sd, char** data){
         printf("receive error: %s (Errno:%d)\n", strerror(errno),errno);
         exit(0);
     }
+    //printf("checkpoint 2 in receive_msg\n");
     if(len == 0){
         printf("no\n");
         return PUT_FILE_NOT_EXIST;
@@ -208,6 +211,39 @@ void receive_file(int fd, char* file){
     free(buff);
 }
 
+void *com_client(void *recv_sd)
+{
+    int *c_sd;
+    c_sd=(int*)recv_sd;
+    int client_sd=*c_sd;
+    char *buff=(char*)malloc(sizeof(char)*BUFF_SIZE);
+    memset(buff,'\0',sizeof(char)*BUFF_SIZE);
+    //printf("check point in com_client\n");
+    int code = receive_msg(client_sd, &buff);
+    switch(code){
+        case LIST_REQUEST:
+            printf("list\n");
+            list(client_sd);
+            break;
+        case GET_REQUEST:
+            printf("get file\n");
+            send_file(client_sd, buff);
+            break;
+        case PUT_REQUEST:
+            printf("put file\n");
+            receive_file(client_sd, buff);
+            break;
+        case PUT_FILE_NOT_EXIST:
+            printf("nothing to do\n");
+            break;
+        default:
+            printf("receive code error: %s (Errno:%d)\n", strerror(errno), errno);
+            exit(0);
+    }
+    free(buff);
+    pthread_exit(NULL);
+}
+
 int main(int argc, char** argv){
     if(argc != 2){
         printf("Invalid command!\n");
@@ -215,9 +251,10 @@ int main(int argc, char** argv){
     }
 	int sd=socket(AF_INET,SOCK_STREAM,0);
     char* buff;
-	int client_sd;
+	int client_sd[THRED];
 	struct sockaddr_in server_addr;
-	struct sockaddr_in client_addr;
+	struct sockaddr_in client_addr[THRED];
+    pthread_t thread[THRED];
 	memset(&server_addr,0,sizeof(server_addr));
 	server_addr.sin_family=AF_INET;
 	server_addr.sin_addr.s_addr=htonl(INADDR_ANY);
@@ -228,36 +265,36 @@ int main(int argc, char** argv){
 	}
 	if(listen(sd, 10)<0){
 		printf("listen error: %s (Errno:%d)\n",strerror(errno),errno);
-		exit(0);
+		close(sd);
+        exit(0);
 	}
+    int addr_len = sizeof(struct sockaddr_in);
+    int thread_count=0;
     printf("I am listening\n");
     while(1){
-        client_sd = accept_client(sd, (struct sockaddr *) &client_addr);
-        buff=(char*)malloc(sizeof(char)*BUFF_SIZE);
-        memset(buff,'\0',sizeof(char)*BUFF_SIZE);
-        int code = receive_msg(client_sd, &buff);
-        switch(code){
-            case LIST_REQUEST:
-                printf("list\n");
-                list(client_sd);
-                break;
-            case GET_REQUEST:
-                printf("get file\n");
-                send_file(client_sd, buff);
-                break;
-            case PUT_REQUEST:
-                printf("put file\n");
-                receive_file(client_sd, buff);
-                break;
-            case PUT_FILE_NOT_EXIST:
-                printf("nothing to do\n");
-                break;
-            default:
-                printf("receive code error: %s (Errno:%d)\n", strerror(errno), errno);
-                exit(0);
+        if(thread_count==10)
+        {
+            thread_count=0;
         }
-        free(buff);
-        close(client_sd);
+        if((client_sd[thread_count] = accept(sd,(struct sockaddr *) &client_addr[thread_count], &addr_len)) < 0){
+            printf("accept error: %s (Errno:%d)\n",strerror(errno),errno);
+            //exit(0);
+            continue;
+        }
+        else{
+            printf("client fd: %d\n", client_sd[thread_count]);
+            printf("fd: %d\n", sd);
+            printf("connect with thread no. %d\n",thread_count+1);
+            if(pthread_create(&thread[thread_count],NULL,com_client, &client_sd[thread_count]))
+            {
+                printf("Faile to create thread!\n");
+                close(client_sd[thread_count]);
+                close(sd);
+                exit(0);
+            }
+            thread_count++;
+        }
     }
+    close(sd);
     return 0;
 }
