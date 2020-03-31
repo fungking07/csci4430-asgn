@@ -10,35 +10,53 @@
 #include <arpa/inet.h>	// "in_addr_t"
 #include <errno.h>
 #include "myftp.h"
-#include <pthread.h>
-pthread_mutex_t mutex;
+#include <isa-l.h>
 //to list the file on server
-void list(int fd)
+void list(int fd[],int standby[],int n)
 {
+	int id=0;
+	//choose a connected server fd
+	for(;id<n;id++)
+	{
+		if(standby[id]==1)
+			break;
+	}
 	int len_s,len_r;
 	char* buff;
 	struct message_s request;
 	struct message_s reply;
 	set_protocol(&request,0xA1,HEADER_LENGTH);
-	if((len_s=send(fd,(void*)&request,sizeof(request),0))==-1)
+	if((len_s=send(fd[id],(void*)&request,sizeof(request),0))==-1)
 	{
 		printf("Fail on LIST_REQUEST_PROTOCOL\n");
-		close(fd);
+		for(int i=0;i<n;i++)
+		{
+			if(standby[i]==1)
+				close(fd[i]);
+		}
 		exit(0);
 	}
 	buff=(char*)malloc(sizeof(char)*BUFF_SIZE);
 	memset(buff,'\0',sizeof(char)*BUFF_SIZE);
-	if((len_r=recv(fd,buff,BUFF_SIZE,0))==-1)
+	if((len_r=recv(fd[id],buff,BUFF_SIZE,0))==-1)
 	{
 		printf("Faile on LIST_REPLY_PROTOCOL\n");
-		close(fd);
+		for(int i=0;i<n;i++)
+		{
+			if(standby[i]==1)
+				close(fd[i]);
+		}
 		exit(0);
 	}
 	memcpy(&reply,buff,HEADER_LENGTH);
 	if(type_to_int(reply,len_r)!=LIST_REPLY)
 	{
 		printf("Wrong protocol type\n");
-		close(fd);
+		for(int i=0;i<n;i++)
+		{
+			if(standby[i]==1)
+				close(fd[i]);
+		}
 		exit(0);
 	}
 	printf("%s",&buff[HEADER_LENGTH]);
@@ -46,7 +64,7 @@ void list(int fd)
 }
 
 //to download file from server
-void download(int fd,char* path)
+void download(char* path,int fd[],int n,int k)
 {
 	int len_s,len_r,len_d,data_len;
 	unsigned int filesize;
@@ -116,7 +134,7 @@ void download(int fd,char* path)
 }
 
 //to upload file to server
-void upload(int fd,char* filename)
+void upload(char* filename,int fd[],int n,int k,int block_size)
 {
 	int len_s,len_r,len_d;
 	unsigned int payload;
@@ -195,53 +213,18 @@ void upload(int fd,char* filename)
 		//printf("bytes left: %d\n",byte_left);
 	}
 }
-//this function use pthread to simulate 10 users access to server in the same time
-void *test(void* args)
-{
-	int *thread_num_p = (int *)args;
-  	int thread_num = *thread_num_p;
-	//pthread_mutex_lock(&mutex);
-	printf("this is thread %d\n",thread_num);
-	int fd;
-	unsigned int addrlen=sizeof(struct sockaddr_in);
-	struct sockaddr_in addr;
-	in_addr_t ip=inet_addr("192.168.1.107");
-	unsigned short port=atoi("12345");
-	fd=socket(AF_INET, SOCK_STREAM, 0);
-	if(fd==-1)
-	{
-		perror("socket()");
-		exit(1);
-	}
-	memset(&addr, 0, sizeof(struct sockaddr_in));
-	addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr =ip;
-	addr.sin_port=htons(port);
-	if(connect(fd,(struct sockaddr *)&addr,addrlen)==-1)
-	{
-		perror("connect()");
-		close(fd);
-		exit(0);
-	}
-	printf("now call list()\n");
-	list(fd);
-	printf("finished thread %d\n",thread_num);
-	//pthread_mutex_unlock(&mutex);
-	pthread_exit(NULL);
-	return 0;
-}
 //main
 int main(int argc,char **argv)
 {
 	int flag=-1;
-	if(argc<4)
+	if(argc<3)
 	{
 		printf("Invalid command!\n");
 		exit(0);
 	}
-	else if(argc==4)
+	else if(argc==3)
 	{
-		if(strcmp(argv[3],"list")==0)
+		if(strcmp(argv[2],"list")==0)
 		{
 			flag=LIST_REQUEST;
 		}
@@ -250,9 +233,8 @@ int main(int argc,char **argv)
 			printf("Invalid command!\n");
 			exit(0);
 		}
-		
 	}
-	else if(argc==5)
+	else if(argc==4)
 	{
 		if(strcmp(argv[3],"put")==0)
 		{
@@ -273,57 +255,110 @@ int main(int argc,char **argv)
 		printf("Invalid command!\n");
 		exit(0);
 	}
-	//use for testing multi-threading in server
-	/*pthread_t thread[10];
-	int arg[10];
-  	for (int i = 0; i < 10; i++) {
-    arg[i] = i + 1;
-  	}
-	for(int i=0;i<10;i++)
+	FILE *client_config;
+	client_config=fopen(argv[1],"r");
+	if(client_config == NULL)
 	{
-		int val=pthread_create(&thread[i],NULL,test,&arg[i]);
-	}
-	for(int i=0;i<10;i++)
-	{
-		pthread_join(thread[i],NULL);
-	}*/
-	int fd;
-	unsigned int addrlen=sizeof(struct sockaddr_in);
-	struct sockaddr_in addr;
-	in_addr_t ip=inet_addr(argv[1]);
-	unsigned short port=atoi(argv[2]);
-	fd=socket(AF_INET, SOCK_STREAM, 0);
-	if(fd==-1)
-	{
-		perror("socket()");
-		exit(1);
-	}
-	memset(&addr, 0, sizeof(struct sockaddr_in));
-	addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr =ip;
-	addr.sin_port=htons(port);
-	if(connect(fd,(struct sockaddr *)&addr,addrlen)==-1)
-	{
-		perror("connect()");
-		close(fd);
+		printf("client config file NOT EXIST!\n");
 		exit(0);
+	}
+	int n,k,block_size;
+	fscanf(client_config,"%d %d %d",&n,&k,&block_size);
+    fgetc(client_config);
+	printf("client config info:\n");
+    printf("n= %d\nk= %d\nblock_size= %d\n",n,k,block_size);
+	if(block_size>CHUNK_SIZE)
+	{
+		printf("block_size is out of size!\n");
+		exit(0);
+	}
+	char ip_addr[n][20],ports[n][10],c;
+	int counta=0,countb=0,countc=0,control_flag=0;
+	//get info from clientconfig.txt
+	while(control_flag != 3)
+	{
+		c=fgetc(client_config);
+		if(c == ':')
+		{
+			control_flag=1;
+			continue;
+		}
+		if(c == '\n')
+			control_flag=2;
+		if(c == EOF)
+			control_flag=3;
+		if(control_flag == 0)
+		{
+			ip_addr[countc][counta]=c;
+			counta++;
+		}
+		if(control_flag == 1)
+		{
+			ports[countc][countb]=c;
+			countb++;
+		}
+		if(control_flag == 2 || control_flag == 3)
+		{
+			ip_addr[countc][counta]='\0';
+			ports[countc][countb]='\0';
+			if(control_flag !=3)
+				control_flag=0;
+			counta=0;
+			countb=0;
+			countc++;
+		}
+	}
+    for(int i =0;i<n;i++)
+    {
+        printf("server ip %d : %s:%s\n",i+1,ip_addr[i],ports[i]);		//print info
+    }
+	//build connection to servers
+	int fd[n],standby[n];			//standby[n] is recorded wheter the server is connected successful,0 is fail, 1 is success
+	int all_on=1;
+	for(int i = 0; i < n ; i ++)
+	{
+		int addrlen=sizeof(struct sockaddr_in);
+		struct sockaddr_in addr;
+		in_addr_t ip=inet_addr(ip_addr[i]);
+		unsigned short port=atoi(ports[i);
+		fd[i]=socket(AF_INET, SOCK_STREAM, 0);
+		if(fd[i]==-1)
+		{
+			perror("socket()");
+			exit(0);
+		}
+		memset(&addr, 0, sizeof(struct sockaddr_in));
+		addr.sin_family = AF_INET;
+		addr.sin_addr.s_addr =ip;
+		addr.sin_port=htons(port);
+		if(connect(fd[i],(struct sockaddr *)&addr,addrlen)==-1)
+		{
+			perror("connect()");
+			close(fd[id]);
+			standby[i]=0;
+			all_on=0;
+		}
+		else
+			standby[i]=1;
 	}
 	switch(flag)
 	{
 		case LIST_REQUEST:
-			list(fd);
+			list(fd,n);
 			break;
 		case GET_REQUEST:
-			download(fd,argv[4]);
+			download(argv[4],fd,n,k);
 			break;
 		case PUT_REQUEST:
-			upload(fd,argv[4]);
+			if(all_on)
+				upload(argv[4],fd,n,k,block_size);
+			else
+				printf("Servers are not all connected!!\n");
 			break;
 		default:
 			printf("unknown command!\n");
 			break;
 	}
-	close(fd);
 	
 	return 0;
 }
