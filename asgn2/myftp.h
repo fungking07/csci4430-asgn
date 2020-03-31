@@ -14,14 +14,20 @@
 #define PUT_REPLY 7
 #define PUT_FILE_NOT_EXIST 8
 
-#define CHUNK_SIZE 1024000
-#define MAX_SIZE 1073741825
+#define CHUNK_SIZE 1048576
+#define MAX_SIZE 1073741824
 
 struct message_s{
     unsigned char protocol[5];
     unsigned char type;
     unsigned int length;
 }__attribute__((packed));
+
+typedef struct stripe{
+    int sid;
+    unsigned char **data_block;
+    unsigned char **parity_block;
+}Stripe;
 
 void set_protocol(struct message_s *protocol, unsigned char type, unsigned int length);
 
