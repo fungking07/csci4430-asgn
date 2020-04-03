@@ -10,6 +10,7 @@
 #include <arpa/inet.h>	// "in_addr_t"
 #include <errno.h>
 #include "myftp.h"
+#include <isa-l.h>
 
 //set the struct message_s
 void set_protocol(struct message_s *protocol, unsigned char type, unsigned int len)

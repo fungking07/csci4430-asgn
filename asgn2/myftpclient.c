@@ -11,8 +11,10 @@
 #include <errno.h>
 #include "myftp.h"
 #include <isa-l.h>
+//global variables stored in client config
+int n,k,block_size;
 //to list the file on server
-void list(int fd[],int standby[],int n)
+void list(int fd[],int standby[])
 {
 	int id=0;
 	//choose a connected server fd
@@ -64,7 +66,7 @@ void list(int fd[],int standby[],int n)
 }
 
 //to download file from server
-void download(char* path,int fd[],int n,int k)
+void download(char* path,int fd)
 {
 	int len_s,len_r,len_d,data_len;
 	unsigned int filesize;
@@ -134,22 +136,31 @@ void download(char* path,int fd[],int n,int k)
 }
 
 //to upload file to server
-void upload(char* filename,int fd[],int n,int k,int block_size)
+void upload(char* filename,int fd[])
 {
-	int len_s,len_r,len_d;
+	printf("all the fds are:");
+	for(int i=0;i<n;i++)
+		printf("%d ",fd[i]);
+	printf("\n");
+	int len_s,len_r,len_d,max_fd=0;
+	int num_of_stripes,stripe_left;
 	unsigned int payload;
 	unsigned int file_payload;
-	char* buff;
-	char* file_data;
+	unsigned char* file_data[n];
+	fd_set fds;
 	FILE* fp;
 	size_t file_bytes;
+	char * buff;
 	struct message_s request;
 	struct message_s reply;
 	struct message_s data;
 	if(access(filename,0)<0)
 	{
 		printf("NO EXISTING FILE\n");
-		close(fd);
+		for(int i=0;i<n;i++)
+		{
+			close(fd[i]);
+		}
 		exit(0);
 	}
 	payload=strlen(filename)+1;
@@ -158,60 +169,191 @@ void upload(char* filename,int fd[],int n,int k,int block_size)
 	memset(buff,'\0',sizeof(char)*BUFF_SIZE);
 	strcpy(&buff[HEADER_LENGTH],filename);
 	memcpy(buff,&request,HEADER_LENGTH);
-	if((len_s=send(fd,buff,HEADER_LENGTH+payload,0))==-1)
-	{
-		printf("Fail on PUT_REQUEST_PROTOCOL\n");
-		close(fd);
-		free(buff);
-		exit(0);
-	}
-	free(buff);
-	if((len_r=recv(fd,&reply,HEADER_LENGTH,0))==-1)
-	{
-		printf("Fail on PUT_REPLY_PROTOCOL\n");
-		close(fd);
-		exit(0);
-	}	
 	file_payload=0;
 	fp=fopen(filename,"r");
 	if(fp==NULL)
 	{
 		printf("Fail on openning file\n");
-		close(fd);
+		for(int i=0;i<n;i++)
+		{
+			close(fd[i]);
+		}
 		exit(0);
 	}
 	fseek(fp,0,SEEK_END);
 	file_payload += ftell(fp);
 	fseek(fp,0,SEEK_SET);
 	fclose(fp);
-	set_protocol(&data,0xFF,HEADER_LENGTH+file_payload);
-	if((len_s=send(fd,(void*)&data,HEADER_LENGTH,0))==-1)
+	printf("file size is : %d\n",file_payload);
+	//calculate the stripes needed;
+	num_of_stripes=file_payload / (block_size * k);
+	if((file_payload % (block_size * k)) > 0)
+		num_of_stripes++;
+	printf("total %d stripe\n",num_of_stripes);
+	//caluculate the payloads for each server
+	int payloads[n];
+	for(int i=0;i<k;i++)
 	{
-		printf("Fail on FILE_DATA_PROTOCOL\n");
-		close(fd);
-		exit(0);
+		payloads[i]=(num_of_stripes - 1) * block_size;
+		if((file_payload % (block_size * k) > (block_size * i))){
+			if(file_payload % (block_size * k) > (block_size * (i+1)))
+				payloads[i]+=block_size;
+			else
+				payloads[i] += ((file_payload % (block_size *k )) - (block_size * i));
+		}
+		else if((file_payload / (block_size * k)) == num_of_stripes)
+			payloads[i] += block_size;
+		printf("payload for server %d is %d\n",i,payloads[i]);
 	}
-	file_bytes = 0;
-	file_data=(char*)malloc(sizeof(char)*MAX_SIZE);
+	for(int i=k;i<n;i++){
+		payloads[i]=num_of_stripes * block_size;
+		printf("payload for server %d is %d\n",i,payloads[i]);
+	}
+	//send put request to all server
+	for(int i=0;i<n;i++)
+	{
+		if((len_s=send(fd[i],buff,HEADER_LENGTH+payload,0))==-1)
+		{
+			printf("Fail on PUT_REQUEST_PROTOCOL\n");
+			for(int i=0;i<n;i++)
+			{
+				close(fd[i]);
+			}
+			free(buff);
+			exit(0);
+		}
+		if((len_r=recv(fd[i],&reply,HEADER_LENGTH,0))==-1)
+		{
+			printf("Fail on PUT_REPLY_PROTOCOL\n");
+			for(int i=0;i<n;i++)
+			{
+				close(fd[i]);
+			}
+			exit(0);
+		}
+		set_protocol(&data,0xFF,HEADER_LENGTH+payloads[i]);
+		if((len_s=send(fd[i],(void*)&data,HEADER_LENGTH,0))==-1)
+		{
+			printf("Fail on FILE_DATA_PROTOCOL\n");
+			for(int i=0;i<n;i++)
+			{
+				close(fd[i]);
+			}
+			exit(0);
+		}
+		if(fd[i]>max_fd)
+			max_fd=fd[i];		//find the max fd
+	}
+	printf("\n max fd is %d\n",max_fd);
+	max_fd++;
 	fp=fopen(filename,"r");
 	if(fp==NULL)
 	{
 		printf("Fail on openning file\n");
-		close(fd);
+		for(int i=0;i<n;i++)
+		{
+			close(fd[i]);
+		}
 		exit(0);
 	}
 	int byte_left=file_payload;
-	while((file_bytes=fread(file_data,1,CHUNK_SIZE,fp))>0)
+	Stripe new_stripe;
+	Stripe *stripe=&new_stripe;
+	//initial the encode matrix and tables;
+	uint8_t *encode_matrix=malloc(sizeof(uint8_t) *  (n*k));
+	uint8_t *tables=malloc(sizeof(uint8_t) * (32 * (n-k) * k));
+	printf("encode matrix:\n");
+	gf_gen_rs_matrix(encode_matrix,n,k);
+	ec_init_tables(k, n-k, &encode_matrix[ k*k ], tables);
+	for(int i=0;i<n;i++)
 	{
-		if((len_d=sendn(fd,file_data,file_bytes))==-1)
+		for(int j=0;j<k;j++)
 		{
-			printf("Fail on sending file\n");
-			close(fd);
-			exit(0);
+			printf("%u ",encode_matrix[ (i*k) + j]);
 		}
-		byte_left -= file_bytes;
-		//printf("bytes left: %d\n",byte_left);
+		printf("\n");
 	}
+	//initial n chunks
+	for(int i=0;i<n;i++)
+	{
+		file_data[i]=malloc(sizeof(unsigned char)* block_size);
+	}
+	stripe->data_block=file_data;
+	stripe->parity_block=&file_data[k];
+	stripe_left=num_of_stripes;
+	//start chunking
+	while(stripe_left)
+	{
+		//clean the stripe
+		for(int i=0;i<n;i++)
+			memset(file_data[i],'\0',sizeof(unsigned char) * block_size);
+		// read data into a stripe
+		for(int i=0;i<k;i++)
+		{
+			if((file_bytes=fread(file_data[i],1,block_size,fp)) < block_size)
+			{
+				break;
+			}
+		}
+		ec_encode_data(block_size, k , n-k , tables , stripe->data_block , stripe->parity_block);	//encode data
+		printf("stripe encoded ready to sent\n");
+		for(int i=0;i<n;i++)
+			printf("stripe %d chunk %d read: %s with %lu bytes\n",num_of_stripes-stripe_left+1,i+1,file_data[i],strlen(file_data[i]));	
+		//use select() to send data
+		int sent[n],flag=1;
+		for(int i=0;i<n;i++)
+		{
+			sent[i]=0;
+			printf("server %d sent[i] is %d payload is %d\n",i,sent[i],payloads[i]);
+		}
+		while(flag)
+		{
+			FD_ZERO(&fds);
+			//set all server fd on
+			for(int j=0;j<n;j++)
+				FD_SET(fd[j],&fds);
+			select(max_fd,NULL,&fds,NULL,NULL);
+			//check each fd isset
+			for(int j=0;j<n;j++)
+			{
+				int len=strlen(file_data[j]);
+				if(FD_ISSET(fd[j],&fds) && (payloads[j]>0) && (sent[j]==0))
+				{
+					printf("server %d is set\nStart to send data\n",j);
+					if((len_d=sendn(fd[j],file_data[j],len))==-1)
+					{
+						printf("Fail on sending file\n");
+						for(int k=0;k<n;k++)
+							close(fd[k]);
+						exit(0);
+					}
+					else
+					{
+						sent[j]=1;
+						payloads[j]-=len_d;
+						printf("success sent %d bytes to server : %d\n%d bytes left for this server\n",len_d,j,payloads[j]);
+					}
+				}
+				else if(payloads[j]==0)	//if nothing to sent just set sent for ending the while loop
+					sent[j]=1;
+			}
+			//check the stripe was sent
+			int sum=0;
+			for(int j=0;j<n;j++)
+				sum+=sent[j];
+			//printf("\nsum is %d\n",sum);
+			if(sum == n)
+				flag=0;
+		}
+		stripe_left--;
+	}
+	free(encode_matrix);
+	free(tables);
+	for(int i=0;i<n;i++)
+	{
+		free(file_data[i]);
+	}
+	free(buff);
 }
 //main
 int main(int argc,char **argv)
@@ -236,11 +378,11 @@ int main(int argc,char **argv)
 	}
 	else if(argc==4)
 	{
-		if(strcmp(argv[3],"put")==0)
+		if(strcmp(argv[2],"put")==0)
 		{
 			flag=PUT_REQUEST;
 		}
-		else if(strcmp(argv[3],"get")==0)
+		else if(strcmp(argv[2],"get")==0)
 		{
 			flag=GET_REQUEST;
 		}
@@ -262,7 +404,6 @@ int main(int argc,char **argv)
 		printf("client config file NOT EXIST!\n");
 		exit(0);
 	}
-	int n,k,block_size;
 	fscanf(client_config,"%d %d %d",&n,&k,&block_size);
     fgetc(client_config);
 	printf("client config info:\n");
@@ -272,7 +413,8 @@ int main(int argc,char **argv)
 		printf("block_size is out of size!\n");
 		exit(0);
 	}
-	char ip_addr[n][20],ports[n][10],c;
+	char ip_addr[n][20],ports[n][10];
+	char c;
 	int counta=0,countb=0,countc=0,control_flag=0;
 	//get info from clientconfig.txt
 	while(control_flag != 3)
@@ -314,13 +456,13 @@ int main(int argc,char **argv)
     }
 	//build connection to servers
 	int fd[n],standby[n];			//standby[n] is recorded wheter the server is connected successful,0 is fail, 1 is success
-	int all_on=1;
+	int all_on=1;					//set all server is on
 	for(int i = 0; i < n ; i ++)
 	{
 		int addrlen=sizeof(struct sockaddr_in);
 		struct sockaddr_in addr;
 		in_addr_t ip=inet_addr(ip_addr[i]);
-		unsigned short port=atoi(ports[i);
+		unsigned short port=atoi(ports[i]);
 		fd[i]=socket(AF_INET, SOCK_STREAM, 0);
 		if(fd[i]==-1)
 		{
@@ -333,27 +475,36 @@ int main(int argc,char **argv)
 		addr.sin_port=htons(port);
 		if(connect(fd[i],(struct sockaddr *)&addr,addrlen)==-1)
 		{
+			printf("connection failed with server %d\n",i);
 			perror("connect()");
-			close(fd[id]);
+			close(fd[i]);
 			standby[i]=0;
-			all_on=0;
+			all_on=0;			//any one of the server was not connected, all on =0
 		}
 		else
+		{
+			printf("connected with server %d\n",i);
 			standby[i]=1;
+		}
 	}
+	int fake_fd=0;
 	switch(flag)
 	{
 		case LIST_REQUEST:
-			list(fd,n);
+			list(fd,standby);
 			break;
 		case GET_REQUEST:
-			download(argv[4],fd,n,k);
+			download(argv[3],fake_fd);
 			break;
 		case PUT_REQUEST:
 			if(all_on)
-				upload(argv[4],fd,n,k,block_size);
-			else
+				upload(argv[3],fd);
+			else{
 				printf("Servers are not all connected!!\n");
+				for(int i=0;i<n;i++)
+					if(standby[i]==1)
+						close(fd[i]);
+			}
 			break;
 		default:
 			printf("unknown command!\n");

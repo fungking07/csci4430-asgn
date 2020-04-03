@@ -27,6 +27,8 @@ typedef struct stripe{
     int sid;
     unsigned char **data_block;
     unsigned char **parity_block;
+    unsigned char *encode_matrix;
+    unsigned char *tables;
 }Stripe;
 
 void set_protocol(struct message_s *protocol, unsigned char type, unsigned int length);
