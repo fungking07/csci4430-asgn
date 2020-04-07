@@ -1,5 +1,5 @@
 CC = gcc
-LIB = -lsocket -lnsl -lpthread
+LIB = -lsocket -lnsl -lpthread -lisal
 
 all: 
 	${CC} -o myftpserver myftpserver.c myftp.c ${LIB}
