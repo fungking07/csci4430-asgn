@@ -397,6 +397,8 @@ int main(int argc,char **argv)
 		printf("Invalid command!\n");
 		exit(0);
 	}
+
+	// read config from config file
 	FILE *client_config;
 	client_config=fopen(argv[1],"r");
 	if(client_config == NULL)
@@ -413,47 +415,18 @@ int main(int argc,char **argv)
 		printf("block_size is out of size!\n");
 		exit(0);
 	}
-	char ip_addr[n][20],ports[n][10];
-	char c;
-	int counta=0,countb=0,countc=0,control_flag=0;
-	//get info from clientconfig.txt
-	while(control_flag != 3)
-	{
-		c=fgetc(client_config);
-		if(c == ':')
-		{
-			control_flag=1;
-			continue;
-		}
-		if(c == '\n')
-			control_flag=2;
-		if(c == EOF)
-			control_flag=3;
-		if(control_flag == 0)
-		{
-			ip_addr[countc][counta]=c;
-			counta++;
-		}
-		if(control_flag == 1)
-		{
-			ports[countc][countb]=c;
-			countb++;
-		}
-		if(control_flag == 2 || control_flag == 3)
-		{
-			ip_addr[countc][counta]='\0';
-			ports[countc][countb]='\0';
-			if(control_flag !=3)
-				control_flag=0;
-			counta=0;
-			countb=0;
-			countc++;
-		}
+
+	char** ip_addr = (char**)malloc(sizeof(char) * n * 25);
+	int *ports = (int*)malloc(sizeof(int) * n);
+	char line[25];
+	for(int i = 0; i < n; i++){
+		ip_addr[i] = malloc(25);
+		fscanf(client_config, "%s", line);
+		strcpy(ip_addr[i], strtok(line, ":\n"));
+		sscanf(strtok(NULL, ":\n"), "%d", &ports[i]);
+        printf("server ip %d : %s : %d\n",i+1,ip_addr[i],ports[i]);		//print info
 	}
-    for(int i =0;i<n;i++)
-    {
-        printf("server ip %d : %s:%s\n",i+1,ip_addr[i],ports[i]);		//print info
-    }
+
 	//build connection to servers
 	int fd[n],standby[n];			//standby[n] is recorded wheter the server is connected successful,0 is fail, 1 is success
 	int all_on=1;					//set all server is on
@@ -462,7 +435,7 @@ int main(int argc,char **argv)
 		int addrlen=sizeof(struct sockaddr_in);
 		struct sockaddr_in addr;
 		in_addr_t ip=inet_addr(ip_addr[i]);
-		unsigned short port=atoi(ports[i]);
+		unsigned short port=ports[i];
 		fd[i]=socket(AF_INET, SOCK_STREAM, 0);
 		if(fd[i]==-1)
 		{
