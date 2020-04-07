@@ -66,7 +66,7 @@ void list(int fd[],int standby[])
 }
 
 //to download file from server
-void download(char* path,int fd[])
+void download(char* path,int fd)
 {
 	int len_s,len_r,len_d,data_len;
 	unsigned int filesize;
