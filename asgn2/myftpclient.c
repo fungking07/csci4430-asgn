@@ -72,19 +72,24 @@ void download(char* path, int* list_fd, int fd, int* standby)
 	char* file_buff;
 	FILE *fp;
 	struct message_s request;
-	struct message_s reply;
 	struct message_s data;
 
 	// exit if not enough available server
 	int num_available_server = 0;
+	int max_fd = 0;
 	for(int i = 0; i < n; i ++){
-		if(standby[i] == 1) num_available_server++;
+		if(standby[i] == 1){
+			num_available_server++;
+			if(list_fd[i] > max_fd) max_fd = list_fd[i];
+		}
 	}
 	if(num_available_server < k){
 		printf("Only %d server available, need %d server to download\n", num_available_server, k);
 		close_all_connection(list_fd, standby);
 		exit(0);
 	}
+	
+	struct message_s reply;
 
 	// send and receive header -> download or cancel
 	payload=strlen(path)+1;
@@ -93,40 +98,56 @@ void download(char* path, int* list_fd, int fd, int* standby)
 	memset(buff,'\0',sizeof(char)*BUFF_SIZE);
 	strcpy(&buff[HEADER_LENGTH],path);
 	memcpy(buff,&request,HEADER_LENGTH);
-	if((len_s=send(fd,buff,HEADER_LENGTH+payload,0))==-1)
-	{
-		printf("Fail on GET_REQUEST_PROTOCOL\n");
-		close(fd);
-		exit(0);
-	}
-	free(buff);
-	if((len_r=recv(fd,&reply,HEADER_LENGTH,0))==-1)
-	{
-		printf("Fail on GET_REPLY_PROTOCOL\n");
-	}
-	if(type_to_int(reply,len_r)==GET_REPLY_EXISTS)
-	{
-		if((len_d=recv(fd,&data,sizeof(data),0))==-1)
-		{
-			printf("Fail on FILE_DATA_PROTOCOL\n");
-			close(fd);
-			exit(0);
+	int* reply_length = (int*)malloc(sizeof(int) * n);
+	int max_server_file_length = 0;
+	int num_of_stripe = 0;
+	// int* payloads = (int*)malloc(sizeof(int) * n);
+
+	// send and receive protocol and calculate the number of stripes
+	for(int i = 0; i < n; i++){
+		if(standby[i] == 1){
+			if((len_s=send(list_fd[i],buff,HEADER_LENGTH+payload,0))==-1)
+			{
+				printf("Fail on GET_REQUEST_PROTOCOL\n");
+				close_all_connection(list_fd, standby);
+				exit(0);
+			}
+			free(buff);
+			if((len_r=recv(list_fd[i],&reply,HEADER_LENGTH,0))==-1)
+			{
+				printf("Fail on GET_REPLY_PROTOCOL\n");
+			}
+			if(type_to_int(reply,len_r)==GET_REPLY_EXISTS)
+			{
+				if((len_d=recv(list_fd[i],&data,sizeof(data),0))==-1)
+				{
+					printf("Fail on FILE_DATA_PROTOCOL\n");
+					close_all_connection(list_fd, standby);
+					exit(0);
+				}
+				reply_length[i] = ntohl(data.length) - HEADER_LENGTH;
+				if((ntohl(data.length) - HEADER_LENGTH) > max_server_file_length){
+					max_server_file_length = ntohl(data.length) - HEADER_LENGTH;
+				}
+				printf("File exists on server %d. Size = %d. Ready to download.\n", i, reply_length[i]);
+			}
+			else if(type_to_int(reply,len_r)==GET_REPLY_NOT_EXISTS)
+			{
+				printf("Sucess on GET_REPLY_PROTOCOL but FILE DOES NOT EXITS\n");
+				close_all_connection(list_fd, standby);
+				exit(0);
+			}
+			else
+			{
+				printf("Wrong protocol type\n");
+				close_all_connection(list_fd, standby);
+				exit(0);
+			}
 		}
 	}
-	else if(type_to_int(reply,len_r)==GET_REPLY_NOT_EXISTS)
-	{
-		printf("Sucess on GET_REPLY_PROTOCOL but FILE DOES NOT EXITS\n");
-		close(fd);
-		exit(0);
-	}
-	else
-	{
-		printf("Wrong protocol type\n");
-		close(fd);
-		exit(0);
-	}
 
-	printf("start decoding file\n");
+	num_of_stripe = max_server_file_length / block_size;
+	int stripe_left = num_of_stripe;
 
 	// start decoding
 	uint8_t *decode_matrix = malloc(sizeof(uint8_t) * k * k);
@@ -134,7 +155,6 @@ void download(char* path, int* list_fd, int fd, int* standby)
 	uint8_t *invert_matrix = malloc(sizeof(uint8_t) * k * k);
 	uint8_t *tables = malloc(sizeof(uint8_t) * (32 * (n-k) * k));
 	gf_gen_rs_matrix(matrix, n, k);
-
 	// copy a set of valid server to decode_matrix
 	int row = 0;
 	for(int i = 0; i < n; i++){
@@ -159,24 +179,81 @@ void download(char* path, int* list_fd, int fd, int* standby)
 	gf_invert_matrix(decode_matrix, invert_matrix, k);
 	ec_init_tables(k, n-k, &invert_matrix[ k*k ], tables);
 
-
-	filesize=ntohl(data.length)-HEADER_LENGTH;
-	file_buff=(char*)malloc(sizeof(char)*MAX_SIZE);
-	fp=fopen(path,"wb");
-	if(fp==NULL)
+	unsigned char** file_data = (unsigned char**)malloc(sizeof(char) * n * block_size);
+	int sum = 0;
+	fd_set fds;
+	int* recv = (int*)malloc(sizeof(int) * n);
+	fp = fopen(path, "w");
+	if(fp == NULL)
 	{
 		printf("Fail on opening file\n");
-		close(fd);
+		close_all_connection(list_fd, standby);
 		exit(0);
 	}
-	if((data_len=recvn(fd,file_buff,filesize))==-1)
-	{
-		printf("Fail on receiving file\n");
-		close(fd);
-		fclose(fp);
-		exit(0);
+	for(int i = 0; i < num_of_stripe; i++){
+		for(int j = 0; j < n; j++){
+			file_data[j] = (unsigned char*)malloc(block_size);
+			memset(file_data[j], '\0', sizeof(unsigned char) * block_size);
+		}
+		int flag = 1;
+		while(flag){
+			FD_ZERO(&fds);
+			//set all server fd on
+			for(int j = 0; j < n; j++) FD_SET(list_fd[j], &fds);
+			select(max_fd, &fds, NULL, NULL, NULL);
+			for(int j = 0; j < n; j++){
+				if(standby[j] == 1 && FD_ISSET(list_fd[j], &fds) && (reply_length[j] > 0) && (recv[j] == 0))
+				{
+					printf("server %d is set\nStart to receive data\n",j);
+					if((len_d = recvn(list_fd[j], file_data[j], block_size)) == -1)
+					{
+						printf("Fail on receving file\n");
+						close_all_connection(list_fd, standby);
+						exit(0);
+					}
+					else
+					{
+						recv[j] = 1;
+						sum++;
+						reply_length[j] -= len_d;
+						printf("success receive %d bytes to server : %d\n%d bytes left for to receive\n", len_d, j, reply_length[j]);
+					}
+				}
+				else if(reply_length[j] == 0)	//if nothing to receive just set recv for ending the while loop
+					recv[j] = 1;
+			}
+
+			// decode
+			printf("decode\n");
+			unsigned char** src = (unsigned char**)malloc(sizeof(unsigned char) * num_available_server);
+			unsigned char** dest = (unsigned char**)malloc(sizeof(unsigned char) * (n - num_available_server));
+			int src_count = 0, dest_count = 0;
+			for(int j = 0; j < n; j++){
+				if(standby[j] == 0){
+					dest[dest_count] = file_data[j];
+					dest_count++;
+				}
+				else{
+					src[src_count] = file_data[j];
+					src_count++;
+				}
+			}
+			ec_encode_data(block_size, k, n - num_available_server, tables, src, dest);
+
+			fwrite(file_data, 1, block_size, fp);
+
+			//check the stripe was sent
+			if(sum == num_available_server)
+				flag = 0;
+		}
 	}
-	fwrite(file_buff,1,data_len,fp);
+	free(recv);
+	free(file_data);
+	free(decode_matrix);
+	free(matrix);
+	free(invert_matrix);
+	free(tables);
+	
 	fclose(fp);
 }
 
