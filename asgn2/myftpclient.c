@@ -105,6 +105,7 @@ void download(char* path, int* list_fd, int fd, int* standby)
 
 	// send and receive protocol and calculate the number of stripes
 	for(int i = 0; i < n; i++){
+		reply_length[i] = 0;
 		if(standby[i] == 1){
 			if((len_s=send(list_fd[i],buff,HEADER_LENGTH+payload,0))==-1)
 			{
@@ -112,7 +113,6 @@ void download(char* path, int* list_fd, int fd, int* standby)
 				close_all_connection(list_fd, standby);
 				exit(0);
 			}
-			free(buff);
 			if((len_r=recv(list_fd[i],&reply,HEADER_LENGTH,0))==-1)
 			{
 				printf("Fail on GET_REPLY_PROTOCOL\n");
@@ -145,6 +145,7 @@ void download(char* path, int* list_fd, int fd, int* standby)
 			}
 		}
 	}
+	free(buff);
 
 	num_of_stripe = max_server_file_length / block_size;
 	int stripe_left = num_of_stripe;
@@ -156,17 +157,29 @@ void download(char* path, int* list_fd, int fd, int* standby)
 	uint8_t *tables = malloc(sizeof(uint8_t) * (32 * (n-k) * k));
 	gf_gen_rs_matrix(matrix, n, k);
 	// copy a set of valid server to decode_matrix
+	printf("original matrix: \n");
+	for(int i=0;i<n;i++)
+	{
+		for(int j=0;j<k;j++)
+		{
+			printf("%u ", matrix[ (i*k) + j]);
+		}
+		printf("\n");
+	}
+	printf("\n");
+
 	int row = 0;
 	for(int i = 0; i < n; i++){
 		if(standby[row] == 0){
 			continue;
 		}
 		for(int j = 0; j < k; j++){
-			decode_matrix[(row * k) + j] = matrix[(i * k) * j];
+			decode_matrix[(row * k) + j] = matrix[(i * k) + j];
 		}
 		row++;
 	}
 	// print decode matrix
+	printf("decode matrix: \n");
 	for(int i = 0; i < k; i++)
 	{
 		for(int j = 0; j < k; j++)
@@ -194,6 +207,7 @@ void download(char* path, int* list_fd, int fd, int* standby)
 		for(int j = 0; j < n; j++){
 			file_data[j] = (unsigned char*)malloc(block_size);
 			memset(file_data[j], '\0', sizeof(unsigned char) * block_size);
+			recv[j] = 0;
 		}
 		int flag = 1;
 		while(flag){
@@ -201,8 +215,10 @@ void download(char* path, int* list_fd, int fd, int* standby)
 			//set all server fd on
 			for(int j = 0; j < n; j++) FD_SET(list_fd[j], &fds);
 			select(max_fd, &fds, NULL, NULL, NULL);
+			printf("after select\n");
 			for(int j = 0; j < n; j++){
-				if(standby[j] == 1 && FD_ISSET(list_fd[j], &fds) && (reply_length[j] > 0) && (recv[j] == 0))
+				printf("reply length: %d\n", reply_length[j]);
+				if(FD_ISSET(list_fd[j], &fds) && (reply_length[j] > 0) && (recv[j] == 0))
 				{
 					printf("server %d is set\nStart to receive data\n",j);
 					if((len_d = recvn(list_fd[j], file_data[j], block_size)) == -1)
@@ -216,10 +232,10 @@ void download(char* path, int* list_fd, int fd, int* standby)
 						recv[j] = 1;
 						sum++;
 						reply_length[j] -= len_d;
-						printf("success receive %d bytes to server : %d\n%d bytes left for to receive\n", len_d, j, reply_length[j]);
+						printf("success receive %d bytes from server%d\n%d bytes left\n", len_d, j, reply_length[j]);
 					}
 				}
-				else if(reply_length[j] == 0)	//if nothing to receive just set recv for ending the while loop
+				if(reply_length[j] == 0)	//if nothing to receive just set recv for ending the while loop
 					recv[j] = 1;
 			}
 
