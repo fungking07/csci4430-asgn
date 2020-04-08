@@ -344,11 +344,10 @@ void upload(char* filename, int* fd, int* standby)
 			//check each fd isset
 			for(int j=0;j<n;j++)
 			{
-				int len=strlen(file_data[j]);
 				if(FD_ISSET(fd[j],&fds) && (payloads[j]>0) && (sent[j]==0))
 				{
 					printf("server %d is set\nStart to send data\n",j);
-					if((len_d=sendn(fd[j],file_data[j],len))==-1)
+					if((len_d=sendn(fd[j],file_data[j],block_size))==-1)
 					{
 						printf("Fail on sending file\n");
 						close_all_connection(fd, standby);
