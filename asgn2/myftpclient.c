@@ -13,8 +13,17 @@
 #include <isa-l.h>
 //global variables stored in client config
 int n,k,block_size;
+
+void close_all_connection(int* fd, int* standby)
+{
+	for(int i = 0; i < n; i++){
+		if(standby[i] == 1) close(fd[i]);
+	}
+}
+
+
 //to list the file on server
-void list(int fd[],int standby[])
+void list(int* fd, int* standby)
 {
 	int id=0;
 	//choose a connected server fd
@@ -31,11 +40,7 @@ void list(int fd[],int standby[])
 	if((len_s=send(fd[id],(void*)&request,sizeof(request),0))==-1)
 	{
 		printf("Fail on LIST_REQUEST_PROTOCOL\n");
-		for(int i=0;i<n;i++)
-		{
-			if(standby[i]==1)
-				close(fd[i]);
-		}
+		close_all_connection(fd, standby);
 		exit(0);
 	}
 	buff=(char*)malloc(sizeof(char)*BUFF_SIZE);
@@ -43,22 +48,14 @@ void list(int fd[],int standby[])
 	if((len_r=recv(fd[id],buff,BUFF_SIZE,0))==-1)
 	{
 		printf("Faile on LIST_REPLY_PROTOCOL\n");
-		for(int i=0;i<n;i++)
-		{
-			if(standby[i]==1)
-				close(fd[i]);
-		}
+		close_all_connection(fd, standby);
 		exit(0);
 	}
 	memcpy(&reply,buff,HEADER_LENGTH);
 	if(type_to_int(reply,len_r)!=LIST_REPLY)
 	{
 		printf("Wrong protocol type\n");
-		for(int i=0;i<n;i++)
-		{
-			if(standby[i]==1)
-				close(fd[i]);
-		}
+		close_all_connection(fd, standby);
 		exit(0);
 	}
 	printf("%s",&buff[HEADER_LENGTH]);
@@ -66,7 +63,7 @@ void list(int fd[],int standby[])
 }
 
 //to download file from server
-void download(char* path,int fd)
+void download(char* path, int* list_fd, int fd, int* standby)
 {
 	int len_s,len_r,len_d,data_len;
 	unsigned int filesize;
@@ -77,6 +74,19 @@ void download(char* path,int fd)
 	struct message_s request;
 	struct message_s reply;
 	struct message_s data;
+
+	// exit if not enough available server
+	int num_available_server = 0;
+	for(int i = 0; i < n; i ++){
+		if(standby[i] == 1) num_available_server++;
+	}
+	if(num_available_server < k){
+		printf("Only %d server available, need %d server to download\n", num_available_server, k);
+		close_all_connection(list_fd, standby);
+		exit(0);
+	}
+
+	// send and receive header -> download or cancel
 	payload=strlen(path)+1;
 	set_protocol(&request,0xB1,HEADER_LENGTH+payload);
 	buff=(char*)malloc(sizeof(char)*BUFF_SIZE);
@@ -115,6 +125,41 @@ void download(char* path,int fd)
 		close(fd);
 		exit(0);
 	}
+
+	printf("start decoding file\n");
+
+	// start decoding
+	uint8_t *decode_matrix = malloc(sizeof(uint8_t) * k * k);
+	uint8_t *matrix = malloc(sizeof(uint8_t) * n * k);
+	uint8_t *invert_matrix = malloc(sizeof(uint8_t) * k * k);
+	uint8_t *tables = malloc(sizeof(uint8_t) * (32 * (n-k) * k));
+	gf_gen_rs_matrix(matrix, n, k);
+
+	// copy a set of valid server to decode_matrix
+	int row = 0;
+	for(int i = 0; i < n; i++){
+		if(standby[row] == 0){
+			continue;
+		}
+		for(int j = 0; j < k; j++){
+			decode_matrix[(row * k) + j] = matrix[(i * k) * j];
+		}
+		row++;
+	}
+	// print decode matrix
+	for(int i = 0; i < k; i++)
+	{
+		for(int j = 0; j < k; j++)
+		{
+			printf("%u ",decode_matrix[(i * k) + j]);
+		}
+		printf("\n");
+	}
+
+	gf_invert_matrix(decode_matrix, invert_matrix, k);
+	ec_init_tables(k, n-k, &invert_matrix[ k*k ], tables);
+
+
 	filesize=ntohl(data.length)-HEADER_LENGTH;
 	file_buff=(char*)malloc(sizeof(char)*MAX_SIZE);
 	fp=fopen(path,"wb");
@@ -136,7 +181,7 @@ void download(char* path,int fd)
 }
 
 //to upload file to server
-void upload(char* filename,int fd[])
+void upload(char* filename, int* fd, int* standby)
 {
 	printf("all the fds are:");
 	for(int i=0;i<n;i++)
@@ -157,10 +202,7 @@ void upload(char* filename,int fd[])
 	if(access(filename,0)<0)
 	{
 		printf("NO EXISTING FILE\n");
-		for(int i=0;i<n;i++)
-		{
-			close(fd[i]);
-		}
+		close_all_connection(fd, standby);
 		exit(0);
 	}
 	payload=strlen(filename)+1;
@@ -174,10 +216,7 @@ void upload(char* filename,int fd[])
 	if(fp==NULL)
 	{
 		printf("Fail on openning file\n");
-		for(int i=0;i<n;i++)
-		{
-			close(fd[i]);
-		}
+		close_all_connection(fd, standby);
 		exit(0);
 	}
 	fseek(fp,0,SEEK_END);
@@ -190,8 +229,9 @@ void upload(char* filename,int fd[])
 	if((file_payload % (block_size * k)) > 0)
 		num_of_stripes++;
 	printf("total %d stripe\n",num_of_stripes);
+
 	//caluculate the payloads for each server
-	int payloads[n];
+	int* payloads = (int*)malloc(sizeof(int) * n);
 	for(int i=0;i<k;i++)
 	{
 		payloads[i]=(num_of_stripes - 1) * block_size;
@@ -215,30 +255,21 @@ void upload(char* filename,int fd[])
 		if((len_s=send(fd[i],buff,HEADER_LENGTH+payload,0))==-1)
 		{
 			printf("Fail on PUT_REQUEST_PROTOCOL\n");
-			for(int i=0;i<n;i++)
-			{
-				close(fd[i]);
-			}
+			close_all_connection(fd, standby);
 			free(buff);
 			exit(0);
 		}
 		if((len_r=recv(fd[i],&reply,HEADER_LENGTH,0))==-1)
 		{
 			printf("Fail on PUT_REPLY_PROTOCOL\n");
-			for(int i=0;i<n;i++)
-			{
-				close(fd[i]);
-			}
+			close_all_connection(fd, standby);
 			exit(0);
 		}
 		set_protocol(&data,0xFF,HEADER_LENGTH+payloads[i]);
 		if((len_s=send(fd[i],(void*)&data,HEADER_LENGTH,0))==-1)
 		{
 			printf("Fail on FILE_DATA_PROTOCOL\n");
-			for(int i=0;i<n;i++)
-			{
-				close(fd[i]);
-			}
+			close_all_connection(fd, standby);
 			exit(0);
 		}
 		if(fd[i]>max_fd)
@@ -250,10 +281,7 @@ void upload(char* filename,int fd[])
 	if(fp==NULL)
 	{
 		printf("Fail on openning file\n");
-		for(int i=0;i<n;i++)
-		{
-			close(fd[i]);
-		}
+		close_all_connection(fd, standby);
 		exit(0);
 	}
 	int byte_left=file_payload;
@@ -323,8 +351,7 @@ void upload(char* filename,int fd[])
 					if((len_d=sendn(fd[j],file_data[j],len))==-1)
 					{
 						printf("Fail on sending file\n");
-						for(int k=0;k<n;k++)
-							close(fd[k]);
+						close_all_connection(fd, standby);
 						exit(0);
 					}
 					else
@@ -347,6 +374,7 @@ void upload(char* filename,int fd[])
 		}
 		stripe_left--;
 	}
+	fclose(fp);
 	free(encode_matrix);
 	free(tables);
 	for(int i=0;i<n;i++)
@@ -426,10 +454,14 @@ int main(int argc,char **argv)
 		sscanf(strtok(NULL, ":\n"), "%d", &ports[i]);
         printf("server ip %d : %s : %d\n",i+1,ip_addr[i],ports[i]);		//print info
 	}
+	fclose(client_config);
 
 	//build connection to servers
-	int fd[n],standby[n];			//standby[n] is recorded wheter the server is connected successful,0 is fail, 1 is success
+	int* fd = (int*)malloc(sizeof(int) * n);
+	int* standby = (int*)malloc(sizeof(int) * n);			//standby[n] is recorded wheter the server is connected successful,0 is fail, 1 is success
 	int all_on=1;					//set all server is on
+
+	// create connection and check standby[]
 	for(int i = 0; i < n ; i ++)
 	{
 		int addrlen=sizeof(struct sockaddr_in);
@@ -461,22 +493,22 @@ int main(int argc,char **argv)
 		}
 	}
 	int fake_fd=0;
+
+	// decide what to do according to user input
+	// main logic
 	switch(flag)
 	{
 		case LIST_REQUEST:
 			list(fd,standby);
 			break;
 		case GET_REQUEST:
-			download(argv[3],fake_fd);
+			download(argv[3], fd, fake_fd, standby);
 			break;
 		case PUT_REQUEST:
-			if(all_on)
-				upload(argv[3],fd);
+			if(all_on) upload(argv[3],fd, standby);
 			else{
 				printf("Servers are not all connected!!\n");
-				for(int i=0;i<n;i++)
-					if(standby[i]==1)
-						close(fd[i]);
+				close_all_connection(fd, standby);
 			}
 			break;
 		default:
