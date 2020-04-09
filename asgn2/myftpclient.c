@@ -228,7 +228,11 @@ void download(char* path, int* list_fd, int fd, int* standby)
 	}
 	ec_init_tables(k, n - k, &decode_matrix[ k*k ], tables);
 
-	unsigned char** file_data = (unsigned char**)malloc(sizeof(char) * n * block_size);
+	unsigned char* file_data[n];
+	for(int i=0;i<n;i++)
+	{
+		file_data[j]=malloc(sizeof(unsigned char)* block_size);
+	}
 	int sum = 0;
 	fd_set fds;
 	int* recv = (int*)malloc(sizeof(int) * n);
@@ -241,8 +245,7 @@ void download(char* path, int* list_fd, int fd, int* standby)
 	}
 	for(int i = 0; i < num_of_stripe; i++){
 		for(int j = 0; j < n; j++){
-			file_data[j] = (unsigned char*)malloc(block_size);
-			memset(file_data[j], '\0', sizeof(unsigned char) * block_size);
+			memset(file_data[i],'\0',sizeof(unsigned char)* block_size);
 			recv[j] = 0;
 		}
 		int flag = 1;
@@ -316,7 +319,10 @@ void download(char* path, int* list_fd, int fd, int* standby)
 		}
 	}
 	free(recv);
-	free(file_data);
+	for(int i=0;i<n;i++)
+	{
+		free(file_data[i]);
+	}
 	free(decode_matrix);
 	free(matrix);
 	free(invert_matrix);
