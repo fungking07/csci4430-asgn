@@ -259,7 +259,7 @@ void download(char* path, int* list_fd, int fd, int* standby)
 			printf("after select\n");
 			for(int j = 0; j < n; j++){
 				printf("reply length: %d\n", reply_length[j]);
-				if(FD_ISSET(list_fd[j], &fds) && (reply_length[j] > 0) && (recv[j] == 0))
+				if((standby[j] == 1) && FD_ISSET(list_fd[j], &fds) && (reply_length[j] > 0) && (recv[j] == 0))
 				{
 					printf("server %d is set\nStart to receive data\n",j);
 					int reply_size = (block_size > reply_length[j])? reply_length[j]: block_size;
