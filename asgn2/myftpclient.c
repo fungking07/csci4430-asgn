@@ -84,6 +84,7 @@ void download(char* path, int* list_fd, int fd, int* standby)
 		}
 	}
 	printf("max fd: %d\n", max_fd);
+	max_fd++;
 	if(num_available_server < k){
 		printf("Only %d server available, need %d server to download\n", num_available_server, k);
 		close_all_connection(list_fd, standby);
@@ -147,93 +148,25 @@ void download(char* path, int* list_fd, int fd, int* standby)
 		}
 	}
 	free(buff);
-
 	num_of_stripe = max_server_file_length / block_size;
 	int stripe_left = num_of_stripe;
-
-	// start decoding
-	uint8_t *matrix = malloc(sizeof(uint8_t) * n * k);
-	uint8_t *error_matrix = malloc(sizeof(uint8_t) * k * k);
-	uint8_t *invert_matrix = malloc(sizeof(uint8_t) * k * k);
-	uint8_t *decode_matrix = malloc(sizeof(uint8_t) * k * k);
-	uint8_t *tables = malloc(sizeof(uint8_t) * (32 * (n-k) * k));
-	memset(decode_matrix, '\0', k * k);
-	memset(error_matrix, '\0', k * k);
-	gf_gen_rs_matrix(matrix, n, k);
-	// copy a set of valid server to decode_matrix
-	printf("original matrix: \n");
+	int last_length[n];
 	for(int i=0;i<n;i++)
 	{
-		for(int j=0;j<k;j++)
+		last_length[i]=0;
+		if(reply_length[i])
 		{
-			printf("%u ", matrix[ (i*k) + j]);
-		}
-		printf("\n");
-	}
-	printf("\n");
-
-	int row = 0;
-	for(int i = 0; i < n; i++){
-		if(standby[i] == 0){
-			continue;
-		}
-		for(int j = 0; j < k; j++){
-			error_matrix[(row * k) + j] = matrix[(i * k) + j];
-		}
-		row++;
-	}
-	for(int i = 0; i < n; i++){
-		printf("standby: %d %d\n", i, standby[i]);
-	}
-	// print error matrix
-	printf("error matrix: \n");
-	for(int i = 0; i < k; i++)
-	{
-		for(int j = 0; j < k; j++)
-		{
-			printf("%u ", error_matrix[(i * k) + j]);
-		}
-		printf("\n");
-	}
-	printf("\n");
-
-	gf_invert_matrix(error_matrix, invert_matrix, k);
-	printf("invert matrix: \n");
-	for(int i = 0; i < k; i++)
-	{
-		for(int j = 0; j < k; j++)
-		{
-			printf("%u ", invert_matrix[(i * k) + j]);
-		}
-		printf("\n");
-	}
-	printf("\n");
-	row = 0;
-	for(int i = 0; i < k; i++){
-		if(standby[i] == 0){
-			for(int j = 0; j < k; j++){
-				decode_matrix[(row * k) + j] = invert_matrix[(i * k) + j];
-			}
-			row++;
+			last_length[i]=reply_length[i] - (num_of_stripe-1)*block_size;
+			printf("last length for stripe %d is %d\n",i,last_length[i]);
 		}
 	}
-	printf("decode matrix: \n");
-	for(int i = 0; i < k; i++)
-	{
-		for(int j = 0; j < k; j++)
-		{
-			printf("%u ",decode_matrix[(i * k) + j]);
-		}
-		printf("\n");
-	}
-	ec_init_tables(k, n - k, &decode_matrix[ k*k ], tables);
+	
 
 	unsigned char* file_data[n];
 	for(int i=0;i<n;i++)
 	{
-		file_data[i]=malloc(sizeof(unsigned char)* block_size);
+		file_data[i]=malloc(sizeof(unsigned char)* (block_size+1));
 	}
-	int sum = 0;
 	fd_set fds;
 	int* recv = (int*)malloc(sizeof(int) * n);
 	fp = fopen(path, "w");
@@ -243,22 +176,25 @@ void download(char* path, int* list_fd, int fd, int* standby)
 		close_all_connection(list_fd, standby);
 		exit(0);
 	}
+	printf("total stripes : %d\n",num_of_stripe);
+	printf("We have %d servers standby\n",num_available_server);
 	for(int i = 0; i < num_of_stripe; i++){
+		printf("check point:start of loop %d\n",i);
 		for(int j = 0; j < n; j++){
-			memset(file_data[i],'\0',sizeof(unsigned char)* block_size);
+			memset(file_data[j],'\0',sizeof(unsigned char)* (block_size+1));
 			recv[j] = 0;
 		}
 		int flag = 1;
-
+		printf("check point: start read every block\n");
 		// read every block
 		while(flag){
 			FD_ZERO(&fds);
 			//set all server fd on
 			for(int j = 0; j < n; j++) FD_SET(list_fd[j], &fds);
-			select(max_fd + 1, &fds, NULL, NULL, NULL);
-			printf("after select\n");
+			select(max_fd, &fds, NULL, NULL, NULL);
+			//printf("after select\n");
 			for(int j = 0; j < n; j++){
-				printf("reply length: %d\n", reply_length[j]);
+				//printf("reply length: %d\n", reply_length[j]);
 				if((standby[j] == 1) && FD_ISSET(list_fd[j], &fds) && (reply_length[j] > 0) && (recv[j] == 0))
 				{
 					printf("server %d is set\nStart to receive data\n",j);
@@ -273,60 +209,208 @@ void download(char* path, int* list_fd, int fd, int* standby)
 					{
 						recv[j] = 1;
 						reply_length[j] -= len_d;
-						printf("success receive %d bytes from server%d\n%d bytes left\n", len_d, j, reply_length[j]);
+						printf("success receive %d bytes from server%d %d bytes left\n", len_d, j, reply_length[j]);
+						printf("data: %s\n",file_data[j]);
+						printf("recv[%d] = %d\n",j,recv[j]);
 					}
 				}
 				if(reply_length[j] == 0)	//if nothing to receive just set recv for ending the while loop
 					recv[j] = 1;
 			}
 			// file block
-			for(int i = 0; i < n; i++){
-				printf("server%d, %s\n", i, file_data[i]);
+			//for(int i = 0; i < n; i++){
+			//	printf("server%d, %s\n", i, file_data[i]);
+			//}
+			//check the stripe are fully recevied 
+			int sum=0;
+			for(int x=0;x<n;x++)
+			{
+				sum+=recv[x];
 			}
-
-			// decode
-			printf("decode stripe %d\n", i);
-			unsigned char** src = (unsigned char**)malloc(sizeof(unsigned char) * num_available_server);
-			unsigned char** dest = (unsigned char**)malloc(sizeof(unsigned char) * (n - num_available_server));
-			int src_count = 0, dest_count = 0;
-			for(int j = 0; j < n; j++){
-				if(standby[j] == 0 && dest_count < (n - num_available_server)){
-					// strcpy(dest[dest_count], file_data[j]);
-					dest[dest_count] = file_data[j];
-					printf("dest pt: %s\n", dest[dest_count]);
-					dest_count++;
-				}
-				else if(standby[j] == 1 && src_count < num_available_server){
-					// strcpy(src[src_count], file_data[j]);
-					src[src_count] = file_data[j];
-					printf("src pt: %s\n", src[src_count]);
-					src_count++;
-				}
+			if(sum==n)
+			{
+				flag=0;
 			}
-			ec_encode_data(block_size, k, n - num_available_server, tables, src, dest);
-			for(int j = 0; j < k; j++){
-				fwrite(file_data[j], 1, block_size, fp);
-			}
-
-			
-
-			//check the stripe was sent
-			sum = 0;
-			for(int j = 0; j < n; j++)if(recv[j] == 1)sum++;
-			printf("ok server = %d\n", sum);
-			if(sum == n)
-				flag = 0;
+			printf("sum: %d flag: %d\n", sum, flag);
 		}
+
+			// start decoding
+			uint8_t *matrix = malloc(sizeof(uint8_t) * n * k);
+			uint8_t *error_matrix = malloc(sizeof(uint8_t) * k * k);
+			uint8_t *invert_matrix = malloc(sizeof(uint8_t) * k * k);
+			uint8_t *decode_matrix = malloc(sizeof(uint8_t) * k * k);
+			uint8_t *tables = malloc(sizeof(uint8_t) * (32 * (n-k) * k));
+			//memset(decode_matrix, '\0', k * k);
+			//memset(error_matrix, '\0', k * k);
+			gf_gen_rs_matrix(matrix, n, k);
+			// copy a set of valid server to decode_matrix
+			printf("original matrix: \n");
+			for(int x=0;x<n;x++)
+			{
+				for(int j=0;j<k;j++)
+				{
+					printf("%u ", matrix[ (x*k) + j]);
+				}
+				printf("\n");
+			}
+			printf("\n");
+
+			int row = 0;
+			for(int x = 0; x < n; x++){
+				if(standby[x] == 0){
+					continue;
+				}
+				for(int j = 0; j < k; j++){
+					error_matrix[(row * k) + j] = matrix[(x * k) + j];
+				}
+				row++;
+			}
+			for(int x = 0; x < n; x++){
+				printf("standby: %d %d\n", x, standby[x]);
+			}
+			// print error matrix
+			printf("error matrix: \n");
+			for(int x = 0; x < k; x++)
+			{
+				for(int j = 0; j < k; j++)
+				{
+					printf("%u ", error_matrix[(x * k) + j]);
+				}
+				printf("\n");
+			}
+			printf("\n");
+
+			gf_invert_matrix(error_matrix, invert_matrix, k);
+			printf("invert matrix: \n");
+			for(int x = 0; x < k; x++)
+			{
+				for(int j = 0; j < k; j++)
+				{
+					printf("%u ", invert_matrix[(x * k) + j]);
+				}
+				printf("\n");
+			}
+			printf("\n");
+			row = 0;
+			for(int x = 0; x < k; x++){
+				if(standby[x] == 0){
+					for(int j = 0; j < k; j++){
+						decode_matrix[(row * k) + j] = invert_matrix[(x * k) + j];
+					}
+					row++;
+				}
+			}
+			printf("decode matrix: \n");
+			for(int x = 0; x < k; x++)
+			{
+				for(int j = 0; j < k; j++)
+				{
+					printf("%u ",decode_matrix[(x * k) + j]);
+				}
+				printf("\n");
+			}
+			ec_init_tables(k, n - k, decode_matrix, tables);
+			// decode
+			//clear dest string
+			//for(int i=0;i<n;i++)
+			{
+				//if(standby[i]==0)
+				{
+					//memset(file_data[i],'\0',sizeof(unsigned char) * (block_size +1));
+				}
+			}
+			printf("before decode,the n block's data is\n");
+			for(int x=0;x<n;x++)
+			{
+				printf("begin:%s:end\n",file_data[x]);
+			}
+			printf("decode stripe %d\n", i);
+			
+			unsigned char** src = (unsigned char**)malloc(sizeof(unsigned char) * k);
+			unsigned char** dest = (unsigned char**)malloc(sizeof(unsigned char) * n);
+			for(int x=0;x<n;x++)
+			{
+				dest[x]=  (unsigned char*)malloc(sizeof(unsigned char)*block_size);
+				memset(dest[x],'\0',sizeof(unsigned char)*block_size);
+			}
+			for(int x=0;x<k;x++)
+			{
+				src[x]= (unsigned char*)malloc(sizeof(unsigned char)*block_size);
+				memset(src[x],'\0',sizeof(unsigned char)*block_size);
+			}
+			int pos=0;
+			for(int x=0;x<n;x++)
+			{
+				if(standby[x]==1)
+				{
+					memcpy(dest[pos],file_data[x],block_size);
+					pos++;
+				}
+			}
+			for(int x=0;x<k;x++)
+			{
+				memcpy(src[x],dest[x],block_size);
+			}
+			ec_encode_data(block_size,k,(n - k),tables,src,&dest[k]);
+			
+			printf("after decode,the n block's data is\n");
+			for(int x=0;x<n;x++)
+			{
+				printf("begin:%s:end\n",dest[x]);
+			}
+			printf("check point:write file\n");
+			int counta=0,countb=0;
+			for(int j = 0; j < k; j++){
+				if(standby[j]==1){
+					
+					if(i==(num_of_stripe-1)){
+						int len=sizeof(dest[counta])/sizeof(unsigned char);
+						printf("write standby server,count %d,will write %d bytes\n",counta,len);
+						fwrite(dest[counta], 1, len, fp);
+					}
+					else
+					{
+						fwrite(dest[counta],1,block_size,fp);
+					}
+					counta++;
+				}
+				else
+				{
+					
+					if(i==(num_of_stripe-1)){
+						int len=sizeof(dest[k+countb])/sizeof(unsigned char);
+						printf("write restore server,count %d,will write %d bytes\n",countb,len);
+						fwrite(dest[k+countb],1,len,fp);
+					}
+					else{
+						fwrite(dest[k+countb],1,block_size,fp);
+					}
+					countb++;
+				}
+			}
+			printf("check point:free()\n");
+			for(int x=0;x<n;x++)
+			{
+				free(dest[x]);
+			}
+			for(int x=0;x<k;x++)
+			{
+				free(src[x]);
+			}
+			free(decode_matrix);
+			free(matrix);
+			free(invert_matrix);
+			free(tables);
+			printf("check point:end of loop\n");
+			
+	
+		
 	}
 	free(recv);
 	for(int i=0;i<n;i++)
 	{
 		free(file_data[i]);
 	}
-	free(decode_matrix);
-	free(matrix);
-	free(invert_matrix);
-	free(tables);
 	
 	fclose(fp);
 }
