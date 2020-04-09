@@ -265,8 +265,8 @@ void download(char* path, int* list_fd, int fd, int* standby)
 				}
 			}
 			ec_encode_data(block_size, k, n - num_available_server, tables, src, dest);
-			for(int i = 0; i < k; i++){
-				fwrite(file_data[i], 1, block_size, fp);
+			for(int j = 0; j < k; j++){
+				fwrite(file_data[j], 1, block_size, fp);
 			}
 
 			
