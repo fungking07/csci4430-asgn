@@ -1,13 +1,10 @@
-all: 
-	@if [ "`uname -s`" = "Linux" ]; then \
-		make -f Makefile.linux ; \
-	else \
-		make -f Makefile.sunos ; \
-	fi
+CC = gcc
+LIB = -lpthread -lisal
 
-clean: 
-	@if [ "`uname -s`" = "Linux" ]; then \
-		make clean -f Makefile.linux ; \
-	else \
-		make clean -f Makefile.sunos ; \
-	fi
+all: 
+	${CC} -o myftpserver myftpserver.c myftp.c ${LIB}
+	${CC} -o myftpclient myftpclient.c myftp.c ${LIB}
+
+clean:
+	rm myftpserver
+	rm myftpclient	
