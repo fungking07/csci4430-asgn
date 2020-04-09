@@ -249,6 +249,17 @@ int main(int argc, char** argv){
         printf("Invalid command!\n");
         exit(0);
     }
+
+    FILE* config = fopen(argv[1], "r");
+    if(config == NULL){
+        printf("cannot open config file\n");
+        exit(0);
+    }
+    int dummy, port = 0;
+    fscanf(config, "%d%d%d%d%d", &dummy, &dummy, &dummy, &dummy, &port);
+    printf("port number is %d\n", port);
+    fclose(config);
+
 	int sd=socket(AF_INET,SOCK_STREAM,0);
     char* buff;
 	int client_sd[THRED];
@@ -258,7 +269,7 @@ int main(int argc, char** argv){
 	memset(&server_addr,0,sizeof(server_addr));
 	server_addr.sin_family=AF_INET;
 	server_addr.sin_addr.s_addr=htonl(INADDR_ANY);
-	server_addr.sin_port=htons(atoi(argv[1]));
+	server_addr.sin_port=htons(port);
 	if(bind(sd, (struct sockaddr *) &server_addr,sizeof(server_addr))<0){
 		printf("bind error: %s (Errno:%d)\n",strerror(errno),errno);
 		exit(0);
