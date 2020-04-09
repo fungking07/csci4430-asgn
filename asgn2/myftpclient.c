@@ -260,6 +260,8 @@ void download(char* path, int* list_fd, int fd, int* standby)
 			fwrite(file_data, 1, block_size, fp);
 
 			//check the stripe was sent
+			sum = 0;
+			for(int j = 0; j < n; j++)if(recv[j] == 1)sum++;
 			if(sum == num_available_server)
 				flag = 0;
 		}
