@@ -231,7 +231,7 @@ void download(char* path, int* list_fd, int fd, int* standby)
 	unsigned char* file_data[n];
 	for(int i=0;i<n;i++)
 	{
-		file_data[j]=malloc(sizeof(unsigned char)* block_size);
+		file_data[i]=malloc(sizeof(unsigned char)* block_size);
 	}
 	int sum = 0;
 	fd_set fds;
