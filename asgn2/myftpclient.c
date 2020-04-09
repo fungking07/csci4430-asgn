@@ -223,7 +223,7 @@ void download(char* path, int* list_fd, int fd, int* standby)
 		}
 		printf("\n");
 	}
-	ec_init_tables(k, n-k, &decode_matrix[ k*k ], tables);
+	ec_init_tables(k, row, &decode_matrix[ k*k ], tables);
 
 	unsigned char** file_data = (unsigned char**)malloc(sizeof(char) * n * block_size);
 	int sum = 0;
