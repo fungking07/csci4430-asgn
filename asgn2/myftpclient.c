@@ -364,8 +364,7 @@ void download(char* path, int* list_fd, int fd, int* standby)
 				if(standby[j]==1){
 					
 					if(i==(num_of_stripe-1)){
-						int len=sizeof(dest[counta])/sizeof(unsigned char);
-						printf("write standby server,count %d,will write %d bytes\n",counta,len);
+
 						fwrite(dest[counta], 1, len, fp);
 					}
 					else
@@ -378,8 +377,6 @@ void download(char* path, int* list_fd, int fd, int* standby)
 				{
 					
 					if(i==(num_of_stripe-1)){
-						int len=sizeof(dest[k+countb])/sizeof(unsigned char);
-						printf("write restore server,count %d,will write %d bytes\n",countb,len);
 						fwrite(dest[k+countb],1,len,fp);
 					}
 					else{
