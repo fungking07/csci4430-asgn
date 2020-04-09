@@ -166,7 +166,7 @@ void download(char* path, int* list_fd, int fd, int* standby)
 	{
 		for(int j=0;j<k;j++)
 		{
-			printf("%d ", matrix[ (i*k) + j]);
+			printf("%u ", matrix[ (i*k) + j]);
 		}
 		printf("\n");
 	}
@@ -182,13 +182,16 @@ void download(char* path, int* list_fd, int fd, int* standby)
 		}
 		row++;
 	}
+	for(int i = 0; i < n; i++){
+		printf("standby: %d %d\n", i, standby[i]);
+	}
 	// print error matrix
 	printf("error matrix: \n");
 	for(int i = 0; i < k; i++)
 	{
 		for(int j = 0; j < k; j++)
 		{
-			printf("%d ", error_matrix[(i * k) + j]);
+			printf("%u ", error_matrix[(i * k) + j]);
 		}
 		printf("\n");
 	}
@@ -200,13 +203,13 @@ void download(char* path, int* list_fd, int fd, int* standby)
 	{
 		for(int j = 0; j < k; j++)
 		{
-			printf("%d ", invert_matrix[(i * k) + j]);
+			printf("%u ", invert_matrix[(i * k) + j]);
 		}
 		printf("\n");
 	}
 	printf("\n");
 	row = 0;
-	for(int i = 0; i < n; i++){
+	for(int i = 0; i < k; i++){
 		if(standby[i] == 0){
 			for(int j = 0; j < k; j++){
 				decode_matrix[(row * k) + j] = invert_matrix[(i * k) + j];
@@ -219,11 +222,11 @@ void download(char* path, int* list_fd, int fd, int* standby)
 	{
 		for(int j = 0; j < k; j++)
 		{
-			printf("%d ",decode_matrix[(i * k) + j]);
+			printf("%u ",decode_matrix[(i * k) + j]);
 		}
 		printf("\n");
 	}
-	ec_init_tables(k, row, &decode_matrix[ k*k ], tables);
+	ec_init_tables(k, n - k, &decode_matrix[ k*k ], tables);
 
 	unsigned char** file_data = (unsigned char**)malloc(sizeof(char) * n * block_size);
 	int sum = 0;
