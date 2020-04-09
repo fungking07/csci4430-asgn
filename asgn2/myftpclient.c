@@ -171,7 +171,7 @@ void download(char* path, int* list_fd, int fd, int* standby)
 
 	int row = 0;
 	for(int i = 0; i < n; i++){
-		if(standby[row] == 0){
+		if(standby[i] == 0){
 			continue;
 		}
 		for(int j = 0; j < k; j++){
@@ -211,6 +211,8 @@ void download(char* path, int* list_fd, int fd, int* standby)
 			recv[j] = 0;
 		}
 		int flag = 1;
+
+		// read every block
 		while(flag){
 			FD_ZERO(&fds);
 			//set all server fd on
@@ -219,7 +221,6 @@ void download(char* path, int* list_fd, int fd, int* standby)
 			printf("after select\n");
 			for(int j = 0; j < n; j++){
 				printf("reply length: %d\n", reply_length[j]);
-				printf("FD_ISSET(list_fd[j], &fds) = %d\n", FD_ISSET(list_fd[j], &fds));
 				if(FD_ISSET(list_fd[j], &fds) && (reply_length[j] > 0) && (recv[j] == 0))
 				{
 					printf("server %d is set\nStart to receive data\n",j);
@@ -239,30 +240,42 @@ void download(char* path, int* list_fd, int fd, int* standby)
 				if(reply_length[j] == 0)	//if nothing to receive just set recv for ending the while loop
 					recv[j] = 1;
 			}
+			// file block
+			for(int i = 0; i < n; i++){
+				printf("server%d, %s\n", i, file_data[i]);
+			}
 
 			// decode
-			printf("decode\n");
+			printf("decode stripe %d\n", i);
 			unsigned char** src = (unsigned char**)malloc(sizeof(unsigned char) * num_available_server);
 			unsigned char** dest = (unsigned char**)malloc(sizeof(unsigned char) * (n - num_available_server));
 			int src_count = 0, dest_count = 0;
 			for(int j = 0; j < n; j++){
-				if(standby[j] == 0){
+				if(standby[j] == 0 && dest_count < (n - num_available_server)){
+					// strcpy(dest[dest_count], file_data[j]);
 					dest[dest_count] = file_data[j];
+					printf("dest pt: %s\n", dest[dest_count]);
 					dest_count++;
 				}
-				else{
+				else if(standby[j] == 1 && src_count < num_available_server){
+					// strcpy(src[src_count], file_data[j]);
 					src[src_count] = file_data[j];
+					printf("src pt: %s\n", src[src_count]);
 					src_count++;
 				}
 			}
 			ec_encode_data(block_size, k, n - num_available_server, tables, src, dest);
+			for(int i = 0; i < k; i++){
+				fwrite(file_data[i], 1, block_size, fp);
+			}
 
-			fwrite(file_data, 1, block_size, fp);
+			
 
 			//check the stripe was sent
 			sum = 0;
 			for(int j = 0; j < n; j++)if(recv[j] == 1)sum++;
-			if(sum == num_available_server)
+			printf("ok server = %d\n", sum);
+			if(sum == n)
 				flag = 0;
 		}
 	}
