@@ -364,7 +364,12 @@ void download(char* path, int* list_fd, int fd, int* standby)
 				if(standby[j]==1){
 					
 					if(i==(num_of_stripe-1)){
-
+						int ool=0,len=0;
+						while(dest[counta][ool] != '\0')
+						{
+							ool++;
+							len++;
+						}
 						fwrite(dest[counta], 1, len, fp);
 					}
 					else
@@ -377,6 +382,12 @@ void download(char* path, int* list_fd, int fd, int* standby)
 				{
 					
 					if(i==(num_of_stripe-1)){
+						int ool=0,len=0;
+						while(dest[counta][ool] != '\0')
+						{
+							ool++;
+							len++;
+						}
 						fwrite(dest[k+countb],1,len,fp);
 					}
 					else{
