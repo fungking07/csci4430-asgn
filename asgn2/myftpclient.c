@@ -383,7 +383,7 @@ void download(char* path, int* list_fd, int fd, int* standby)
 					
 					if(i==(num_of_stripe-1)){
 						int ool=0,len=0;
-						while(dest[counta][ool] != '\0')
+						while(dest[k+countb][ool] != '\0')
 						{
 							ool++;
 							len++;
