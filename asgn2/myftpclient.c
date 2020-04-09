@@ -10,7 +10,7 @@
 #include <arpa/inet.h>	// "in_addr_t"
 #include <errno.h>
 #include "myftp.h"
-#include <isa-l.h>
+#include "isa-l.h"
 //global variables stored in client config
 int n,k,block_size;
 
@@ -152,10 +152,13 @@ void download(char* path, int* list_fd, int fd, int* standby)
 	int stripe_left = num_of_stripe;
 
 	// start decoding
-	uint8_t *decode_matrix = malloc(sizeof(uint8_t) * k * k);
 	uint8_t *matrix = malloc(sizeof(uint8_t) * n * k);
+	uint8_t *error_matrix = malloc(sizeof(uint8_t) * k * k);
 	uint8_t *invert_matrix = malloc(sizeof(uint8_t) * k * k);
+	uint8_t *decode_matrix = malloc(sizeof(uint8_t) * k * k);
 	uint8_t *tables = malloc(sizeof(uint8_t) * (32 * (n-k) * k));
+	memset(decode_matrix, '\0', k * k);
+	memset(error_matrix, '\0', k * k);
 	gf_gen_rs_matrix(matrix, n, k);
 	// copy a set of valid server to decode_matrix
 	printf("original matrix: \n");
@@ -163,7 +166,7 @@ void download(char* path, int* list_fd, int fd, int* standby)
 	{
 		for(int j=0;j<k;j++)
 		{
-			printf("%u ", matrix[ (i*k) + j]);
+			printf("%d ", matrix[ (i*k) + j]);
 		}
 		printf("\n");
 	}
@@ -175,23 +178,52 @@ void download(char* path, int* list_fd, int fd, int* standby)
 			continue;
 		}
 		for(int j = 0; j < k; j++){
-			decode_matrix[(row * k) + j] = matrix[(i * k) + j];
+			error_matrix[(row * k) + j] = matrix[(i * k) + j];
 		}
 		row++;
 	}
-	// print decode matrix
+	// print error matrix
+	printf("error matrix: \n");
+	for(int i = 0; i < k; i++)
+	{
+		for(int j = 0; j < k; j++)
+		{
+			printf("%d ", error_matrix[(i * k) + j]);
+		}
+		printf("\n");
+	}
+	printf("\n");
+
+	gf_invert_matrix(error_matrix, invert_matrix, k);
+	printf("invert matrix: \n");
+	for(int i = 0; i < k; i++)
+	{
+		for(int j = 0; j < k; j++)
+		{
+			printf("%d ", invert_matrix[(i * k) + j]);
+		}
+		printf("\n");
+	}
+	printf("\n");
+	row = 0;
+	for(int i = 0; i < n; i++){
+		if(standby[i] == 0){
+			for(int j = 0; j < k; j++){
+				decode_matrix[(row * k) + j] = invert_matrix[(i * k) + j];
+			}
+			row++;
+		}
+	}
 	printf("decode matrix: \n");
 	for(int i = 0; i < k; i++)
 	{
 		for(int j = 0; j < k; j++)
 		{
-			printf("%u ",decode_matrix[(i * k) + j]);
+			printf("%d ",decode_matrix[(i * k) + j]);
 		}
 		printf("\n");
 	}
-
-	gf_invert_matrix(decode_matrix, invert_matrix, k);
-	ec_init_tables(k, n-k, &invert_matrix[ k*k ], tables);
+	ec_init_tables(k, n-k, &decode_matrix[ k*k ], tables);
 
 	unsigned char** file_data = (unsigned char**)malloc(sizeof(char) * n * block_size);
 	int sum = 0;
@@ -224,7 +256,8 @@ void download(char* path, int* list_fd, int fd, int* standby)
 				if(FD_ISSET(list_fd[j], &fds) && (reply_length[j] > 0) && (recv[j] == 0))
 				{
 					printf("server %d is set\nStart to receive data\n",j);
-					if((len_d = recvn(list_fd[j], file_data[j], block_size)) == -1)
+					int reply_size = (block_size > reply_length[j])? reply_length[j]: block_size;
+					if((len_d = recvn(list_fd[j], file_data[j], reply_size)) == -1)
 					{
 						printf("Fail on receving file\n");
 						close_all_connection(list_fd, standby);
