@@ -83,6 +83,7 @@ void download(char* path, int* list_fd, int fd, int* standby)
 			if(list_fd[i] > max_fd) max_fd = list_fd[i];
 		}
 	}
+	printf("max fd: %d\n", max_fd);
 	if(num_available_server < k){
 		printf("Only %d server available, need %d server to download\n", num_available_server, k);
 		close_all_connection(list_fd, standby);
@@ -214,10 +215,11 @@ void download(char* path, int* list_fd, int fd, int* standby)
 			FD_ZERO(&fds);
 			//set all server fd on
 			for(int j = 0; j < n; j++) FD_SET(list_fd[j], &fds);
-			select(max_fd, &fds, NULL, NULL, NULL);
+			select(max_fd + 1, &fds, NULL, NULL, NULL);
 			printf("after select\n");
 			for(int j = 0; j < n; j++){
 				printf("reply length: %d\n", reply_length[j]);
+				printf("FD_ISSET(list_fd[j], &fds) = %d\n", FD_ISSET(list_fd[j], &fds));
 				if(FD_ISSET(list_fd[j], &fds) && (reply_length[j] > 0) && (recv[j] == 0))
 				{
 					printf("server %d is set\nStart to receive data\n",j);
@@ -230,7 +232,6 @@ void download(char* path, int* list_fd, int fd, int* standby)
 					else
 					{
 						recv[j] = 1;
-						sum++;
 						reply_length[j] -= len_d;
 						printf("success receive %d bytes from server%d\n%d bytes left\n", len_d, j, reply_length[j]);
 					}
