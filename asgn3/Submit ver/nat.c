@@ -219,6 +219,8 @@ int main(int argc, char** argv) {
   inet_aton(public_ip,&temp);
   publicIP = ntohl(temp.s_addr);
 
+  printf("start receiving\n");
+
   int millis_per_token = 1000 / fill_rate;
   time_t prev_time = time(NULL);
   time_t curr_time = time(NULL);
