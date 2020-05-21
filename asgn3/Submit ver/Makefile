@@ -2,15 +2,18 @@ CC=gcc
 CFLAGS= -Wall -Wno-sign-compare -Wno-write-strings -O3 -I./
 LDFLAGS=-lnfnetlink -lnetfilter_queue -lm -lpthread
 
-EXE=nat
-OBJ=nat.o checksum.o entry.o
+# EXE=nat
+# OBJ=nat.o checksum.o entry.o
 
-all: $(EXE)
+# all: $(EXE)
 
-$(EXE): nat.c checksum.c entry.c
-	$(CC) $(CFLAGS) -o $(EXE) $(OBJ) $(LDFLAGS) 
+# $(EXE): nat.c checksum.c entry.c
+# 	$(CC) $(CFLAGS) -o $(EXE) $(OBJ) $(LDFLAGS) 
 
-clean:
-	/bin/rm -f $(OBJ) $(EXE)
+# clean:
+# 	/bin/rm -f $(OBJ) $(EXE)
 
-# nat.c entry.c checksum.c
+# nat.c entry.c checksum.c# # # # # # # # # 
+
+all: nat.c entry.c checksum.c
+	$(CC) $(CFLAGS) -o nat nat.c entry.c checksum.c $(LDFLAGS)
