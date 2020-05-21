@@ -124,7 +124,7 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
     //do translation
     ipHeader->saddr = htonl(new_ip);
     udph->source = htons(new_port);
-    printf("dest port after trans: %lu\n",udph->dest);
+    printf("Outbound:dest/src port after trans: %u / %u\n",(unsigned int)ntohs(udph->dest),unsigned int(ntohs(udph->source)));
 
     //re-calculate checksum
     udph->check=udp_checksum(pktData);
@@ -145,6 +145,8 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
       //do translation
       ipHeader->daddr = htonl(finder->src_ip);
       udph->dest = htons(finder->src_port);
+
+      printf("Inbound:dest/src port after trans: %u / %u\n",(unsigned int)ntohs(udph->dest),unsigned int(ntohs(udph->source)));
 
       //recalculate checksum
       udph->check = udp_checksum(pktData);
@@ -213,22 +215,30 @@ int main(int argc, char** argv) {
   fill_rate = atoi(argv[5]);
   
   //handle global var (char)public ip to (unsigned int)publicIP
-  clock_t_start
-clock();;  inet_aton(public_ip,&temp);
+  inet_aton(public_ip,&temp);
   publicIP = ntohl(temp.s_addr);
 
+  int millis_per_token = 1000 / fill_rate;
   time_t prev_time = time(NULL);
   time_t curr_time = time(NULL);
-
-  time_t curren_time = 
   int num_token = bucket_size;
 
   while (1) {
-    if(num_token > 0){
+    if(num_token > 0){  
       if((res = recv(fd, buf, sizeof(buf), 0)) && res >= 0){
+        num_token--;  
         check_time();
         nfq_handle_packet(nfqHandle, buf, res);
-      }curr_time - prev_time >     }
+      }
+    if(num_token == bucket_size){
+      continue;
+    }
+    curr_time = time(NULL);   
+      }curr_time - prev_time >= millis_per_token{}
+      prev_time += millis_per_token;
+      num_token++;
+        }
+    }
     if(current_time)
   }
 
