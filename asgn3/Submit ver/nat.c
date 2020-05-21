@@ -198,7 +198,6 @@ int main(int argc, char** argv) {
     exit(1);
   }
 
-  printf("dds\n");
   struct nfnl_handle *netlinkHandle;
   netlinkHandle = nfq_nfnlh(nfqHandle);
 
@@ -207,7 +206,6 @@ int main(int argc, char** argv) {
 
   int res;
   char buf[BUF_SIZE];
-  printf("ss\n");
 
   //Key in the arguments
   public_ip = argv[1];
@@ -216,7 +214,6 @@ int main(int argc, char** argv) {
   bucket_size = atoi(argv[4]);
   fill_rate = atoi(argv[5]);
 
-  printf("x\n");
   
   //handle global var (char)public ip to (unsigned int)publicIP
   struct in_addr temp;
@@ -239,6 +236,7 @@ int main(int argc, char** argv) {
       }
     }
     if(num_token == bucket_size){
+      prev_time = time(NULL);
       continue;
     }
     curr_time = time(NULL);
