@@ -116,7 +116,7 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,struct nf
       new_port=finder->tran_port;
     }
     //do translation
-    ipHeader->sadr = htonl(new_ip);
+    ipHeader->saddr = htonl(new_ip);
     udph->source = htons(new_port);
 
     //re-calculate checksum
@@ -207,6 +207,8 @@ int main(int argc, char** argv) {
   //handle global var (char)public ip to (unsigned int)publicIP
   inet_aton(public_ip,&publicIP);
   publicIP = ntohl(publicIP);
+
+  clock_t time_count;
 
 
   while ((res = recv(fd, buf, sizeof(buf), 0)) && res >= 0) {
