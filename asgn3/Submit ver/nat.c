@@ -118,10 +118,13 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
       //entry found
       new_ip=publicIP;
       new_port=finder->tran_port;
+      //refresh time count
+      finder->time=time(NULL);
     }
     //do translation
     ipHeader->saddr = htonl(new_ip);
     udph->source = htons(new_port);
+    printf("dest port after trans: %lu\n",udph->dest);
 
     //re-calculate checksum
     udph->check=udp_checksum(pktData);
@@ -137,7 +140,8 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
     if(finder != NULL)
     {
       //entry found
-
+      //refresh time count
+      finder->time=time(NULL);
       //do translation
       ipHeader->daddr = htonl(finder->src_ip);
       udph->dest = htons(finder->src_port);
