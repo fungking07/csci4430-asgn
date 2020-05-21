@@ -13,8 +13,11 @@
 #include <netinet/tcp.h>    // required by "struct tcph"
 #include <netinet/udp.h>    // required by "struct udph"
 #include <netinet/ip_icmp.h>    // required by "struct icmphdr"
+
+extern "C" {
 #include <linux/netfilter.h> // required by NF_ACCEPT, NF_DROP, etc...
 #include <libnetfilter_queue/libnetfilter_queue.h>
+}
 
 #include "checksum.h"   //for checksum
 #include "entry.h"        //for entry table
