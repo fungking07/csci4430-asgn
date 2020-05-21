@@ -12,7 +12,8 @@ struct Entry{
 };
 
 void check_time();
-struct Entry *search(unsigned int port);
+struct Entry *search_for_inbound(unsigned int port);
+struct Entry *search_for_outbound(unsigned int port,unsigned int ip);
 void insert(struct Entry new_one);
 void showTable();
 

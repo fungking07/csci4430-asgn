@@ -20,9 +20,10 @@ void insert(struct Entry new_one)
     entry->time=time(NULL);
     entry->next=head;
     head=entry;
+    showTable();
 }
 
-struct Entry *search(unsigned int port)
+struct Entry *search_for_inbound(unsigned int port)
 {
     struct Entry *current = NULL;
     if(head==NULL)
@@ -37,12 +38,28 @@ struct Entry *search(unsigned int port)
     return NULL;
 }
 
+struct Entry *search_for_outbound(unsigned int port,unsigned int ip)
+{
+    struct Entry *current = NULL;
+    if(head==NULL)
+        return NULL;
+    current=head;
+    while(current != NULL)
+    {
+        if((current->src_port == port) && (current->src_ip) == ip)
+            return current;
+        current=current->next;
+    }
+    return NULL;
+}
+
 void check_time()
 {
     struct Entry *current = head;
     struct Entry *prev;
     time_t now=time(NULL);
     double duration;
+    int change=0;
     if(head!=NULL)
     {
         while(current !=NULL)
@@ -50,6 +67,8 @@ void check_time()
             duration=difftime(now,current->time);
             if(duration >= 10.0)
             {
+                //deletion happen
+                change=1;
                 //last one time out
                 if(current->next == NULL)
                 {
@@ -92,6 +111,8 @@ void check_time()
                 current=prev->next;
             }
         }
+        if(change)
+            showTable();    
     }
 }
 

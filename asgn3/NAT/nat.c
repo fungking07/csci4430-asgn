@@ -40,7 +40,8 @@ int tcpfindport() {
 /*
 * Callback function installed to netfilter queue
 */
-static int Callback(struct nfq_q_handle *qh, struct nfgenmsg *msg, struct nfq_data *pkt, void *data) {
+static int Callback(struct nfq_q_handle *qh, struct nfgenmsg *msg, 
+struct nfq_data *pkt, void *data) {
   int i;
   // nfq related variable
   struct nfqnl_msg_packet_hdr *nfq_header;
