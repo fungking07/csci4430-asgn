@@ -71,7 +71,7 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,struct nf
   uint32_t dest_ip=ntohl(ipHeader->daddr);
 
   //Access UDP Packet
-  struct udphdr *udph=(struct udphrd*)(((char*)ipHeader) + ipHeader->ihl*4);
+  struct udphdr *udph=(struct udphdr*)(((char*)ipHeader) + ipHeader->ihl*4);
 
   //Get snd'r/recv'er Port
   uint16_t src_port=ntohs(udph->source);
@@ -100,7 +100,7 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,struct nf
         printf("no available port any more!\nbye bye!\nsee you!\ndont come back!\n:-P\n");
         exit(-1);
       }
-      new_ip = public_ip;
+      new_ip = publicIP;
       new_port = trans_port;
       struct Entry tmp;
       tmp.src_ip = src_ip;
@@ -205,11 +205,12 @@ int main(int argc, char** argv) {
   fill_rate = atoi(argv[5]);
   
   //handle global var (char)public ip to (unsigned int)publicIP
-  inet_aton(public_ip,&publicIP);
+  struct in_addr temp;
+  inet_aton(public_ip,&temp);
   publicIP = ntohl(publicIP);
 
-  clock_t time_count;
-
+  clock_t token_count = clock();
+  int num_token = bucket_size;
 
   while ((res = recv(fd, buf, sizeof(buf), 0)) && res >= 0) {
     check_time();
