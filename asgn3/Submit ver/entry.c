@@ -56,7 +56,7 @@ struct Entry *search_for_outbound(unsigned int port,unsigned int ip)
 void check_time()
 {
     struct Entry *current = head;
-    struct Entry *prev;
+    struct Entry *prev = NULL;
     time_t now=time(NULL);
     double duration;
     int change=0;
