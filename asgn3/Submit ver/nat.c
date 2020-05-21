@@ -227,23 +227,27 @@ int main(int argc, char** argv) {
   time_t curr_time = time(NULL);
   int num_token = bucket_size;
 
-  while (1) {
-    if(num_token > 0){
-      if((res = recv(fd, buf, sizeof(buf), 0)) && res >= 0){
-        num_token--;  
-        check_time();
-        nfq_handle_packet(nfqHandle, buf, res);
-      }
-    }
-    if(num_token == bucket_size){
-      prev_time = time(NULL);
-      continue;
-    }
-    curr_time = time(NULL);
-    if(curr_time - prev_time >= millis_per_token){
-      prev_time += millis_per_token;
-      num_token++;
-    }
+  // while (1) {
+  //   if(num_token > 0){
+  //     if((res = recv(fd, buf, sizeof(buf), 0)) && res >= 0){
+  //       num_token--;  
+  //       check_time();
+  //       nfq_handle_packet(nfqHandle, buf, res);
+  //     }
+  //   }
+  //   if(num_token == bucket_size){
+  //     prev_time = time(NULL);
+  //     continue;
+  //   }
+  //   curr_time = time(NULL);
+  //   if(curr_time - prev_time >= millis_per_token){
+  //     prev_time += millis_per_token;
+  //     num_token++;
+  //   }
+  // }
+  while((res = recv(fd, buf, sizeof(buf), 0)) && res >= 0){
+      check_time();
+      nfq_handle_packet(nfqHandle, buf, res);
   }
 
 
