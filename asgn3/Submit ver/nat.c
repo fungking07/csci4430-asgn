@@ -215,6 +215,7 @@ int main(int argc, char** argv) {
   fill_rate = atoi(argv[5]);
   
   //handle global var (char)public ip to (unsigned int)publicIP
+  struct in_addr temp;
   inet_aton(public_ip,&temp);
   publicIP = ntohl(temp.s_addr);
 
@@ -224,22 +225,21 @@ int main(int argc, char** argv) {
   int num_token = bucket_size;
 
   while (1) {
-    if(num_token > 0){  
+    if(num_token > 0){
       if((res = recv(fd, buf, sizeof(buf), 0)) && res >= 0){
         num_token--;  
         check_time();
         nfq_handle_packet(nfqHandle, buf, res);
       }
+    }
     if(num_token == bucket_size){
       continue;
     }
-    curr_time = time(NULL);   
-      }curr_time - prev_time >= millis_per_token{}
+    curr_time = time(NULL);
+    if(curr_time - prev_time >= millis_per_token){
       prev_time += millis_per_token;
       num_token++;
-        }
     }
-    if(current_time)
   }
 
 
