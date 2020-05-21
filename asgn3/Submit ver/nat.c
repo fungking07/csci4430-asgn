@@ -13,7 +13,6 @@
 #include <netinet/tcp.h>    // required by "struct tcph"
 #include <netinet/udp.h>    // required by "struct udph"
 #include <netinet/ip_icmp.h>    // required by "struct icmphdr"
-#include "entry.c"        //for entry table
 
 extern "C" {
 #include <linux/netfilter.h> // required by NF_ACCEPT, NF_DROP, etc...
@@ -21,6 +20,7 @@ extern "C" {
 }
 
 #include "checksum.h"   //for checksum
+#include "entry.h"        //for entry table
 
 #define BUF_SIZE 1500
 
@@ -48,8 +48,7 @@ int findport()
   return -1;
 }
 
-static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
-    struct nfq_data *pkt, void *cbData) {
+static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,struct nfq_data *pkt, void *cbData) {
   // Get the id in the queue
   unsigned int id = 0;
 
