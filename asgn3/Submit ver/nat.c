@@ -66,6 +66,7 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
   //Drop non-UDP packet
   if (ipHeader->protocol != IPPROTO_UDP) {
     printf("Wrong protocol\n");
+    //this line may be rewrite for multi thread
     return nfq_set_verdict(myQueue, id, NF_DROP, 0, NULL);
   }
 
@@ -132,7 +133,28 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
   else
   {
     //inbound
-    
+    struct Entry *finder = search_for_inbound(dest_port);
+    if(finder != NULL)
+    {
+      //entry found
+
+      //do translation
+      ipHeader->daddr = htonl(finder->src_ip);
+      udph->dest = htons(finder->src_port);
+
+      //recalculate checksum
+      udph->check = udp_checksum(pktData);
+      ipHeader->check = ip_checksum(pktData);
+
+      //this line may be rewrite for multi thread
+      return nfq_set_verdict(myQueue, id, NF_ACCEPT, ip_pkt_len, pktData);
+    }
+    else
+    {
+      //404 NOT FOUND drop it
+      //this line may be rewrite for multi thread
+      return nfq_set_verdict(myQueue, id, NF_DROP, 0, NULL);
+    }
   }
   
 }
