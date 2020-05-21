@@ -1,6 +1,6 @@
-IP = "10.3.1.12"        #Public IP
-LAN = "10.0.12.0"       #LAN Address
-MASK = "24"             #subnet mask
+IP="10.3.1.12"        #Public IP
+LAN="10.0.12.0"       #LAN Address
+MASK="24"             #subnet mask
 echo "1" > /proc/sys/net/ipv4/ip_forward
 iptables -t nat -F
 iptables -t filter -F
