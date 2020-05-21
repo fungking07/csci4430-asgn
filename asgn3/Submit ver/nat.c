@@ -13,11 +13,8 @@
 #include <netinet/tcp.h>    // required by "struct tcph"
 #include <netinet/udp.h>    // required by "struct udph"
 #include <netinet/ip_icmp.h>    // required by "struct icmphdr"
-
-extern "C" {
 #include <linux/netfilter.h> // required by NF_ACCEPT, NF_DROP, etc...
 #include <libnetfilter_queue/libnetfilter_queue.h>
-}
 
 #include "checksum.h"   //for checksum
 #include "entry.h"        //for entry table
@@ -48,19 +45,22 @@ int findport()
   return -1;
 }
 
-static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,struct nfq_data *pkt, void *cbData) {
+static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
+    struct nfq_data *pkt, void *cbData) {
   // Get the id in the queue
   unsigned int id = 0;
 
   struct nfqnl_msg_packet_hdr *header;
-  if (header = nfq_get_msg_packet_hdr(pkt)) {
+  if ((header = nfq_get_msg_packet_hdr(pkt))) {
     id = ntohl(header->packet_id);
   }
 
   // Access IP Packet
   unsigned char *pktData;
-  int ip_pkt_len = nfq_get_payload(pkt, &pktData);
-  struct iphdr *ipHeader = (struct iphdr *)pktData;
+  int ip_pkt_len;
+  ip_pkt_len = nfq_get_payload(pkt, &pktData);
+  struct iphdr *ipHeader;
+  ipHeader = (struct iphdr *)pktData;
   
   //Drop non-UDP packet
   if (ipHeader->protocol != IPPROTO_UDP) {
@@ -74,7 +74,8 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,struct nf
   uint32_t dest_ip=ntohl(ipHeader->daddr);
 
   //Access UDP Packet
-  struct udphdr *udph=(struct udphdr*)(((char*)ipHeader) + ipHeader->ihl*4);
+  struct udphdr *udph;
+  udph=(struct udphdr*)(((char*)ipHeader) + ipHeader->ihl*4);
 
   //Get snd'r/recv'er Port
   uint16_t src_port=ntohs(udph->source);
@@ -210,15 +211,21 @@ int main(int argc, char** argv) {
   //handle global var (char)public ip to (unsigned int)publicIP
   struct in_addr temp;
   inet_aton(public_ip,&temp);
-  publicIP = ntohl(publicIP);
+  publicIP = ntohl(temp.s_addr);
 
-  clock_t token_count = clock();
+  time_t curren_time = 
   int num_token = bucket_size;
 
-  while ((res = recv(fd, buf, sizeof(buf), 0)) && res >= 0) {
-    check_time();
-    nfq_handle_packet(nfqHandle, buf, res);
+  while (1) {
+    if(num_token > 0){
+      if((res = recv(fd, buf, sizeof(buf), 0)) && res >= 0){
+        check_time();
+        nfq_handle_packet(nfqHandle, buf, res);
+      }
+    }
+    if(current_time)
   }
+
 
   nfq_destroy_queue(nfQueue);
   nfq_close(nfqHandle);
