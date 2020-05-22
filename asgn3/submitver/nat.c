@@ -236,7 +236,7 @@ int main(int argc, char** argv) {
   time_t curr_time = time(NULL);
   int num_token = bucket_size;
 
-  struct timespec tim1;
+  struct timespec tim1, tim2;
   tim1.tv_sec = 0;
   tim1.tv_nsec = 5000;
   while((res = recv(fd, buf, sizeof(buf), 0)) && res >= 0){
