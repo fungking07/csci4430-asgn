@@ -105,81 +105,6 @@ int consume_token(){
   return 0;
 }
 
-void *read_thread()
-{
-  printf("read_thread on\n");
-  // Get a queue connection handle from the module
-  struct nfq_handle *nfqHandle;
-  if (!(nfqHandle = nfq_open())) {
-    printf("Error in nfq_open()\n");
-    exit(-1);
-  }
-
-  // Unbind the handler from processing any IP packets
-  if (nfq_unbind_pf(nfqHandle, AF_INET) < 0) {
-    printf("Error in nfq_unbind_pf()\n");
-    exit(1);
-  }
-
-  // Install a callback on queue 0
-  struct nfq_q_handle *nfQueue;
-  if (!(nfQueue = nfq_create_queue(nfqHandle,  0, &Callback, NULL))) {
-    printf("Error in nfq_create_queue()\n");
-    exit(1);
-  }
-  // nfq_set_mode: I want the entire packet 
-  if(nfq_set_mode(nfQueue, NFQNL_COPY_PACKET, BUF_SIZE) < 0) {
-    printf("Error in nfq_set_mode()\n");
-    exit(-1);
-  }
-
-  struct nfnl_handle *netlinkHandle;
-  netlinkHandle = nfq_nfnlh(nfqHandle);
-
-  
-  //handle global var (char)public ip to (unsigned int)publicIP
-  struct in_addr temp;
-  inet_aton(public_ip,&temp);
-  publicIP = ntohl(temp.s_addr);
-  int fd;
-  fd = nfnl_fd(netlinkHandle);
-
-  int res;
-  char buf[BUF_SIZE];
-
-  printf("start receiving\n");
-
-  int millis_per_token = 1000 * fill_rate;
-  time_t prev_time = time(NULL);
-  time_t curr_time = time(NULL);
-  int num_token = bucket_size;
-
-  struct timespec tim1;
-  tim1.tv_sec = 0;
-  tim1.tv_nsec = 5000;
-
-  while((res = recv(fd, buf, sizeof(buf), 0)) && res >= 0){
-    /*
-      while(!consume_token()){
-        if(nanosleep(&tim1, &tim2) < 0){
-          printf("ERROR: nanosleep() system call failed!\n");
-        }
-        curr_time = time(NULL);
-        if(curr_time - prev_time >= millis_per_token){
-          prev_time = curr_time;
-          num_token++;
-        }
-      }
-      */
-      check_time();
-      check_port();
-      nfq_handle_packet(nfqHandle, buf, res);
-  }
-  nfq_destroy_queue(nfQueue);
-  nfq_close(nfqHandle);
-  pthread_exit(NULL);
-}
-
 void *handle_thread()
 {
   printf("handle_thread on\n");
@@ -331,28 +256,91 @@ int main(int argc, char** argv) {
     fprintf(stderr, "Usage sudo ./nat <IP> <LAN> <MASK> <bucket size> <fill rate>");
     exit(1);
   }
+
+  // Get a queue connection handle from the module
+  struct nfq_handle *nfqHandle;
+  if (!(nfqHandle = nfq_open())) {
+    printf("Error in nfq_open()\n");
+    exit(-1);
+  }
+
+  // Unbind the handler from processing any IP packets
+  if (nfq_unbind_pf(nfqHandle, AF_INET) < 0) {
+    printf("Error in nfq_unbind_pf()\n");
+    exit(1);
+  }
+
+  // Install a callback on queue 0
+  struct nfq_q_handle *nfQueue;
+  if (!(nfQueue = nfq_create_queue(nfqHandle,  0, &Callback, NULL))) {
+    printf("Error in nfq_create_queue()\n");
+    exit(1);
+  }
+  // nfq_set_mode: I want the entire packet 
+  if(nfq_set_mode(nfQueue, NFQNL_COPY_PACKET, BUF_SIZE) < 0) {
+    printf("Error in nfq_set_mode()\n");
+    exit(-1);
+  }
+
+  struct nfnl_handle *netlinkHandle;
+  netlinkHandle = nfq_nfnlh(nfqHandle);
+
   //Key in the arguments
   public_ip = argv[1];
   internal_ip = argv[2];
   subnet_mask = argv[3];
   bucket_size = atoi(argv[4]);
   fill_rate = atoi(argv[5]);
-  //create a thread to receive and a thread to handle
-  pthread_t receive;
+
+  //handle global var (char)public ip to (unsigned int)publicIP
+  struct in_addr temp;
+  inet_aton(public_ip,&temp);
+  publicIP = ntohl(temp.s_addr);
+  int fd;
+  fd = nfnl_fd(netlinkHandle);
+
+  int res;
+  char buf[BUF_SIZE];
+
+  //create a thread to to handle
   pthread_t handle;
   printf("tryint to create thread\n");
-  if(pthread_create(&receive,NULL,read_thread, NULL))
-  {
-    printf("Fail to create read_thread!\n");
-    exit(-1);
-  }
-  printf("nothing happened to read_thread\n");
   if(pthread_create(&handle,NULL,handle_thread, NULL))
   {
     printf("Fail to create handle_thread!\n");
     exit(-1);
   }
-  printf("nothing happened to handle_thread\n");
+
+  printf("start receiving\n");
+
+  int millis_per_token = 1000 * fill_rate;
+  time_t prev_time = time(NULL);
+  time_t curr_time = time(NULL);
+  int num_token = bucket_size;
+
+  struct timespec tim1;
+  tim1.tv_sec = 0;
+  tim1.tv_nsec = 5000;
+
+  while((res = recv(fd, buf, sizeof(buf), 0)) && res >= 0){
+    /*
+      while(!consume_token()){
+        if(nanosleep(&tim1, &tim2) < 0){
+          printf("ERROR: nanosleep() system call failed!\n");
+        }
+        curr_time = time(NULL);
+        if(curr_time - prev_time >= millis_per_token){
+          prev_time = curr_time;
+          num_token++;
+        }
+      }
+      */
+      check_time();
+      check_port();
+      nfq_handle_packet(nfqHandle, buf, res);
+  }
+  nfq_destroy_queue(nfQueue);
+  nfq_close(nfqHandle);
 
 
   return 0;
