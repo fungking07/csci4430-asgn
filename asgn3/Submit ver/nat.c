@@ -33,6 +33,7 @@ int port_used[2001]={0};
 int num_token;
 struct nfq_data *pkt_buff[10]={NULL};    //to store packet data for multi thread
 struct nfq_q_handle *myqueue[10]={NULL};  //to store queue info
+pthread_mutex_t mutex;
 
 int findport()
 {
@@ -71,6 +72,7 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
   int flag=-1;
   for(i=0;i<10;i++)
   {
+    pthread_mutex_lock(&mutex);
     if(pkt_buff[i]==NULL)
     {
       printf("Callback loop i=%d\n",i);
@@ -78,6 +80,7 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
       flag=i;
       pkt_buff[i]=pkt; //(struct nfq_data*) malloc(sizeof(struct nfq_data));
       myqueue[i]=myQueue;
+      pthread_mutex_unlock(&mutex);
       break;
     }
   }
@@ -117,6 +120,7 @@ void *handle_thread()
     int i;
     for(i=0;i<10;i++)
     {
+      pthread_mutex_lock(&mutex);
       if(pkt_buff[i]!=NULL)
       {
         printf("handle thread , got pkt in i=%d\n",i);
@@ -125,6 +129,7 @@ void *handle_thread()
         pkt_buff[i]=NULL;
         struct nfq_q_handle *myQueue=myqueue[i];
         myqueue[i]=NULL;
+        pthread_mutex_unlock(&mutex);
         // Get the id in the queue
         unsigned int id = 0;
 
@@ -260,6 +265,9 @@ int main(int argc, char** argv) {
     exit(1);
   }
 
+  //initialize mutex
+  pthread_mutex_init(&mutex,NULL);
+
   // Get a queue connection handle from the module
   struct nfq_handle *nfqHandle;
   if (!(nfqHandle = nfq_open())) {
@@ -342,6 +350,7 @@ int main(int argc, char** argv) {
       check_port();
       nfq_handle_packet(nfqHandle, buf, res);
   }
+  pthread_mutex_destroy(&mutex);
   nfq_destroy_queue(nfQueue);
   nfq_close(nfqHandle);
 
