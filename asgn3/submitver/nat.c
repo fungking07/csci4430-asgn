@@ -288,10 +288,6 @@ int main(int argc, char** argv) {
   publicIP = ntohl(temp.s_addr);
 
   printf("start receiving\n");
-<<<<<<< HEAD
-  pthread_create(handle, NULL, read_thread, nfQueue);
-  pthread_create(verdict, NULL, verdict_thread, nfQueue);
-=======
 
   int millis_per_token = 1000 * fill_rate;
   time_t prev_time = time(NULL);
@@ -316,7 +312,6 @@ int main(int argc, char** argv) {
       nfq_handle_packet(nfqHandle, buf, res);
   }
 
->>>>>>> parent of 48b5cb6... Merge branch 'master' of https://github.com/fungking07/CSCI4430-Asgns
 
   nfq_destroy_queue(nfQueue);
   nfq_close(nfqHandle);
