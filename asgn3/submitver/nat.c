@@ -31,6 +31,43 @@ unsigned int local_mask;
 unsigned int publicIP;
 int port_used[2001]={0};
 int num_token;
+PacketPool *ppool;
+
+static void *read_thread(void *fd){
+  int millis_per_token = 1000 * fill_rate;
+  time_t prev_time = time(NULL);
+  time_t curr_time = time(NULL);
+  int num_token = bucket_size;
+
+  struct timespec tim1, tim2;
+  tim1.tv_sec = 0;
+  tim1.tv_nsec = 5000;
+  while((res = recv(fd, buf, sizeof(buf), 0)) && res >= 0){
+    
+      /**while(!consume_token()){
+        if(nanosleep(&tim1, &tim2) < 0){
+          printf("ERROR: nanosleep() system call failed!\n");
+        }
+        curr_time = time(NULL);
+        if(curr_time - prev_time >= millis_per_token){
+          prev_time = curr_time;
+          num_token++;
+        }
+      }**/
+      
+      check_time();
+      check_port();
+      nfq_handle_packet(nfqHandle, buf, res);
+  }
+}
+
+static void *verdict_thread(void *fd){
+  for (;;) {
+    Packet p = fetch_packet_from_pool(ppool);
+    u_int32_t id = treat_pkt(pkt, &verdict); /* Treat packet */
+    nfq_set_verdict(nfQueue, id, verdict, 0, NULL); /* Verdict packet */
+  }
+}
 
 int findport()
 {
@@ -247,32 +284,8 @@ int main(int argc, char** argv) {
 
   printf("start receiving\n");
 
-  int millis_per_token = 1000 * fill_rate;
-  time_t prev_time = time(NULL);
-  time_t curr_time = time(NULL);
-  int num_token = bucket_size;
-
-  struct timespec tim1, tim2;
-  tim1.tv_sec = 0;
-  tim1.tv_nsec = 5000;
-  while((res = recv(fd, buf, sizeof(buf), 0)) && res >= 0){
-    
-      while(!consume_token()){
-        if(nanosleep(&tim1, &tim2) < 0){
-          printf("ERROR: nanosleep() system call failed!\n");
-        }
-        curr_time = time(NULL);
-        if(curr_time - prev_time >= millis_per_token){
-          prev_time = curr_time;
-          num_token++;
-        }
-      }
-      
-      check_time();
-      check_port();
-      nfq_handle_packet(nfqHandle, buf, res);
-  }
-
+  pthread_create(read_thread_id, NULL, read_thread, nfQueue);
+  pthread_create(write_thread_id, NULL, verdict_thread, nfQueue);
 
   nfq_destroy_queue(nfQueue);
   nfq_close(nfqHandle);
