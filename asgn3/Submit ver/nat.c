@@ -107,6 +107,7 @@ int consume_token(){
 
 void *read_thread()
 {
+  printf("read_thread on\n");
   // Get a queue connection handle from the module
   struct nfq_handle *nfqHandle;
   if (!(nfqHandle = nfq_open())) {
@@ -181,6 +182,7 @@ void *read_thread()
 
 void *handle_thread()
 {
+  printf("handle_thread on\n");
   //thread func to handle
   while(1)
   {
