@@ -73,6 +73,7 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
   {
     if(pkt_buff[i]==NULL)
     {
+      printf("Callback loop i=%d\n",i);
       //we have a place to handle, store to buffer
       flag=i;
       pkt_buff[i]=pkt; //(struct nfq_data*) malloc(sizeof(struct nfq_data));
@@ -117,6 +118,7 @@ void *handle_thread()
     {
       if(pkt_buff[i]!=NULL)
       {
+        printf("handle thread , got pkt in i=%d\n",i);
         //get the pkt data and reset buff to NULL
         struct nfq_data *pkt=pkt_buff[i];
         pkt_buff[i]=NULL;
