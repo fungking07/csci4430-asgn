@@ -46,6 +46,22 @@ int findport()
   return -1;
 }
 
+void check_port()
+{
+  int i
+  struct Entry *finder;
+  for(i = 10000;i <= 12000; i++)
+  {
+    if(port_used[i-10000]==1)
+    {
+      unsigned int port= (unsigned int)i;
+      finder=search_for_inbound(port);
+      if(finder == NULL)
+        port_used[i-10000]=0;
+    }
+  }
+}
+
 static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
     struct nfq_data *pkt, void *cbData) {
   // Get the id in the queue
