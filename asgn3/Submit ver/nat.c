@@ -78,6 +78,7 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
       flag=i;
       pkt_buff[i]=pkt; //(struct nfq_data*) malloc(sizeof(struct nfq_data));
       myqueue[i]=myQueue;
+      break;
     }
   }
   if(flag == -1)
