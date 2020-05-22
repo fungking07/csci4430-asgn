@@ -48,7 +48,7 @@ int findport()
 
 void check_port()
 {
-  int i
+  int i;
   struct Entry *finder;
   for(i = 10000;i <= 12000; i++)
   {
