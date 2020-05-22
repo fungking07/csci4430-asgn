@@ -315,7 +315,6 @@ int main(int argc, char** argv) {
 
   //create a thread to to handle
   pthread_t handle;
-  printf("tryint to create thread\n");
   if(pthread_create(&handle,NULL,handle_thread, NULL))
   {
     printf("Fail to create handle_thread!\n");
