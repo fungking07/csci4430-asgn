@@ -105,13 +105,52 @@ int consume_token(){
   return 0;
 }
 
-void *read_thread(void *recv_fd)
+void *read_thread()
 {
-  //change recv_fd to int
-  int *c_fd;
-  c_fd=(int*)recv_fd;
-  int fd=*c_fd;
-  //thread func to receive
+  // Get a queue connection handle from the module
+  struct nfq_handle *nfqHandle;
+  if (!(nfqHandle = nfq_open())) {
+    fprintf(stderr, "Error in nfq_open()\n");
+    exit(-1);
+  }
+
+  // Unbind the handler from processing any IP packets
+  if (nfq_unbind_pf(nfqHandle, AF_INET) < 0) {
+    fprintf(stderr, "Error in nfq_unbind_pf()\n");
+    exit(1);
+  }
+
+  // Install a callback on queue 0
+  struct nfq_q_handle *nfQueue;
+  if (!(nfQueue = nfq_create_queue(nfqHandle,  0, &Callback, NULL))) {
+    fprintf(stderr, "Error in nfq_create_queue()\n");
+    exit(1);
+  }
+  // nfq_set_mode: I want the entire packet 
+  if(nfq_set_mode(nfQueue, NFQNL_COPY_PACKET, BUF_SIZE) < 0) {
+    fprintf(stderr, "Error in nfq_set_mode()\n");
+    exit(1);
+  }
+
+  struct nfnl_handle *netlinkHandle;
+  netlinkHandle = nfq_nfnlh(nfqHandle);
+
+
+  //Key in the arguments
+  public_ip = argv[1];
+  internal_ip = argv[2];
+  subnet_mask = argv[3];
+  bucket_size = atoi(argv[4]);
+  fill_rate = atoi(argv[5]);
+
+  
+  //handle global var (char)public ip to (unsigned int)publicIP
+  struct in_addr temp;
+  inet_aton(public_ip,&temp);
+  publicIP = ntohl(temp.s_addr);
+  int fd;
+  fd = nfnl_fd(netlinkHandle);
+
   int res;
   char buf[BUF_SIZE];
 
@@ -291,56 +330,11 @@ int main(int argc, char** argv) {
     fprintf(stderr, "Usage sudo ./nat <IP> <LAN> <MASK> <bucket size> <fill rate>");
     exit(1);
   }
-
-  // Get a queue connection handle from the module
-  struct nfq_handle *nfqHandle;
-  if (!(nfqHandle = nfq_open())) {
-    fprintf(stderr, "Error in nfq_open()\n");
-    exit(-1);
-  }
-
-  // Unbind the handler from processing any IP packets
-  if (nfq_unbind_pf(nfqHandle, AF_INET) < 0) {
-    fprintf(stderr, "Error in nfq_unbind_pf()\n");
-    exit(1);
-  }
-
-  // Install a callback on queue 0
-  struct nfq_q_handle *nfQueue;
-  if (!(nfQueue = nfq_create_queue(nfqHandle,  0, &Callback, NULL))) {
-    fprintf(stderr, "Error in nfq_create_queue()\n");
-    exit(1);
-  }
-  // nfq_set_mode: I want the entire packet 
-  if(nfq_set_mode(nfQueue, NFQNL_COPY_PACKET, BUF_SIZE) < 0) {
-    fprintf(stderr, "Error in nfq_set_mode()\n");
-    exit(1);
-  }
-
-  struct nfnl_handle *netlinkHandle;
-  netlinkHandle = nfq_nfnlh(nfqHandle);
-
-
-  //Key in the arguments
-  public_ip = argv[1];
-  internal_ip = argv[2];
-  subnet_mask = argv[3];
-  bucket_size = atoi(argv[4]);
-  fill_rate = atoi(argv[5]);
-
-  
-  //handle global var (char)public ip to (unsigned int)publicIP
-  struct in_addr temp;
-  inet_aton(public_ip,&temp);
-  publicIP = ntohl(temp.s_addr);
-  int fd;
-  fd = nfnl_fd(netlinkHandle);
-  
   //now we get the fd
   //create a thread to receive and a thread to handle
   pthread_t receive;
   pthread_t handle;
-  if(pthread_create(&receive,NULL,read_thread, &fd))
+  if(pthread_create(&receive,NULL,read_thread, NULL))
   {
     printf("Fail to create read_thread!\n");
     nfq_destroy_queue(nfQueue);
