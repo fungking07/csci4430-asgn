@@ -133,125 +133,135 @@ void *read_thread(void *fd)
   }
 }
 
-void *handle_thread()
+int *handle_thread()
 {
   //thread func to handle
   while(1)
   {
-    //use loop to handle all 
-    // Get the id in the queue
-    unsigned int id = 0;
-
-    struct nfqnl_msg_packet_hdr *header;
-    if ((header = nfq_get_msg_packet_hdr(pkt))) {
-      id = ntohl(header->packet_id);
-    }
-
-    // Access IP Packet
-    unsigned char *pktData;
-    int ip_pkt_len;
-    ip_pkt_len = nfq_get_payload(pkt, &pktData);
-    struct iphdr *ipHeader;
-    ipHeader = (struct iphdr *)pktData;
-    
-    //Drop non-UDP packet
-    if (ipHeader->protocol != IPPROTO_UDP) {
-      printf("Wrong protocol\n");
-      //this line may be rewrite for multi thread
-      return nfq_set_verdict(myQueue, id, NF_DROP, 0, NULL);
-    }
-
-    //Get IP addr
-    uint32_t src_ip = ntohl(ipHeader->saddr);
-    uint32_t dest_ip=ntohl(ipHeader->daddr);
-
-    //Access UDP Packet
-    struct udphdr *udph;
-    udph=(struct udphdr*)(((char*)ipHeader) + ipHeader->ihl*4);
-
-    //Get snd'r/recv'er Port
-    uint16_t src_port=ntohs(udph->source);
-    uint16_t dest_port=ntohs(udph->dest);
-
-    //handle mask
-    int mask_int = atoi(subnet_mask);
-    unsigned int local_mask= 0xffffffff << (32 - mask_int);
-    struct in_addr tmp;
-    inet_aton(internal_ip, &tmp);
-    uint32_t local_network = ntohl(tmp.s_addr) & local_mask;
-
-    //check in or out bound
-    if((src_ip & local_mask) == local_network)
+    //use loop to handle all
+    int i;
+    for(i=0;i<10;i++)
     {
-      //outbound
-      struct Entry *finder=search_for_outbound(src_port,src_ip);
-      unsigned int new_ip;
-      unsigned int new_port;
-      if(finder == NULL)
+      if(pkt_buff[i]!=NULL)
       {
-        //entry not found, create new one
-        unsigned int trans_port = findport();
-        if(trans_port == -1)
-        {
-          printf("no available port any more!\nbye bye!\nsee you!\ndont come back!\n:-P\n");
-          exit(-1);
+        //get the pkt data and reset buff to NULL
+        struct nfq_data *pkt=pkt_buff[i];
+        pkt_buff[i]=NULL;
+        // Get the id in the queue
+        unsigned int id = 0;
+
+        struct nfqnl_msg_packet_hdr *header;
+        if ((header = nfq_get_msg_packet_hdr(pkt))) {
+          id = ntohl(header->packet_id);
         }
-        new_ip = publicIP;
-        new_port = trans_port;
-        struct Entry tmp;
-        tmp.src_ip = src_ip;
-        tmp.src_port = src_port;
-        tmp.tran_port = trans_port;
-        tmp.tran_ip = publicIP;
-        insert(tmp);
-      }
-      else
-      {
-        //entry found
-        new_ip=publicIP;
-        new_port=finder->tran_port;
-        //refresh time count
-        finder->time=time(NULL);
-      }
-      //do translation
-      ipHeader->saddr = htonl(new_ip);
-      udph->source = htons(new_port);
-      //printf("Outbound:dest/src port after trans: %u / %u\n",(unsigned int)ntohs(udph->dest),(unsigned int)(ntohs(udph->source)));
 
-      //re-calculate checksum
-      udph->check=udp_checksum(pktData);
-      ipHeader->check=ip_checksum(pktData);
+        // Access IP Packet
+        unsigned char *pktData;
+        int ip_pkt_len;
+        ip_pkt_len = nfq_get_payload(pkt, &pktData);
+        struct iphdr *ipHeader;
+        ipHeader = (struct iphdr *)pktData;
+        
+        //Drop non-UDP packet
+        if (ipHeader->protocol != IPPROTO_UDP) {
+          printf("Wrong protocol\n");
+          //this line may be rewrite for multi thread
+          return nfq_set_verdict(myQueue, id, NF_DROP, 0, NULL);
+        }
 
-      //this line may be rewrite for multi thread
-      return nfq_set_verdict(myQueue, id, NF_ACCEPT, ip_pkt_len, pktData);
-    }
-    else
-    {
-      //inbound
-      struct Entry *finder = search_for_inbound(dest_port);
-      if(finder != NULL)
-      {
-        //entry found
-        //refresh time count
-        finder->time=time(NULL);
-        //do translation
-        ipHeader->daddr = htonl(finder->src_ip);
-        udph->dest = htons(finder->src_port);
+        //Get IP addr
+        uint32_t src_ip = ntohl(ipHeader->saddr);
+        uint32_t dest_ip=ntohl(ipHeader->daddr);
 
-        //printf("Inbound:dest/src port after trans: %u / %u\n",(unsigned int)ntohs(udph->dest),(unsigned int)(ntohs(udph->source)));
+        //Access UDP Packet
+        struct udphdr *udph;
+        udph=(struct udphdr*)(((char*)ipHeader) + ipHeader->ihl*4);
 
-        //recalculate checksum
-        udph->check = udp_checksum(pktData);
-        ipHeader->check = ip_checksum(pktData);
+        //Get snd'r/recv'er Port
+        uint16_t src_port=ntohs(udph->source);
+        uint16_t dest_port=ntohs(udph->dest);
 
-        //this line may be rewrite for multi thread
-        return nfq_set_verdict(myQueue, id, NF_ACCEPT, ip_pkt_len, pktData);
-      }
-      else
-      {
-        //404 NOT FOUND drop it
-        //this line may be rewrite for multi thread
-        return nfq_set_verdict(myQueue, id, NF_DROP, 0, NULL);
+        //handle mask
+        int mask_int = atoi(subnet_mask);
+        unsigned int local_mask= 0xffffffff << (32 - mask_int);
+        struct in_addr tmp;
+        inet_aton(internal_ip, &tmp);
+        uint32_t local_network = ntohl(tmp.s_addr) & local_mask;
+
+        //check in or out bound
+        if((src_ip & local_mask) == local_network)
+        {
+          //outbound
+          struct Entry *finder=search_for_outbound(src_port,src_ip);
+          unsigned int new_ip;
+          unsigned int new_port;
+          if(finder == NULL)
+          {
+            //entry not found, create new one
+            unsigned int trans_port = findport();
+            if(trans_port == -1)
+            {
+              printf("no available port any more!\nbye bye!\nsee you!\ndont come back!\n:-P\n");
+              exit(-1);
+            }
+            new_ip = publicIP;
+            new_port = trans_port;
+            struct Entry tmp;
+            tmp.src_ip = src_ip;
+            tmp.src_port = src_port;
+            tmp.tran_port = trans_port;
+            tmp.tran_ip = publicIP;
+            insert(tmp);
+          }
+          else
+          {
+            //entry found
+            new_ip=publicIP;
+            new_port=finder->tran_port;
+            //refresh time count
+            finder->time=time(NULL);
+          }
+          //do translation
+          ipHeader->saddr = htonl(new_ip);
+          udph->source = htons(new_port);
+          //printf("Outbound:dest/src port after trans: %u / %u\n",(unsigned int)ntohs(udph->dest),(unsigned int)(ntohs(udph->source)));
+
+          //re-calculate checksum
+          udph->check=udp_checksum(pktData);
+          ipHeader->check=ip_checksum(pktData);
+
+          //this line may be rewrite for multi thread
+          return nfq_set_verdict(myQueue, id, NF_ACCEPT, ip_pkt_len, pktData);
+        }
+        else
+        {
+          //inbound
+          struct Entry *finder = search_for_inbound(dest_port);
+          if(finder != NULL)
+          {
+            //entry found
+            //refresh time count
+            finder->time=time(NULL);
+            //do translation
+            ipHeader->daddr = htonl(finder->src_ip);
+            udph->dest = htons(finder->src_port);
+
+            //printf("Inbound:dest/src port after trans: %u / %u\n",(unsigned int)ntohs(udph->dest),(unsigned int)(ntohs(udph->source)));
+
+            //recalculate checksum
+            udph->check = udp_checksum(pktData);
+            ipHeader->check = ip_checksum(pktData);
+
+            //this line may be rewrite for multi thread
+            return nfq_set_verdict(myQueue, id, NF_ACCEPT, ip_pkt_len, pktData);
+          }
+          else
+          {
+            //404 NOT FOUND drop it
+            //this line may be rewrite for multi thread
+            return nfq_set_verdict(myQueue, id, NF_DROP, 0, NULL);
+          }
+        }
       }
     }
 
