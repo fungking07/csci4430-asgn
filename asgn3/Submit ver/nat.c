@@ -31,7 +31,8 @@ unsigned int local_mask;
 unsigned int publicIP;
 int port_used[2001]={0};
 int num_token;
-struct nfq_data *pkt_buff[10]=NULL;    //to store packet data for multi thread
+struct nfq_data *pkt_buff[10]={NULL};    //to store packet data for multi thread
+struct nfq_q_handle *myqueue[10]={NULL};  //to store queue info
 
 int findport()
 {
@@ -75,11 +76,18 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
       //we have a place to handle, store to buffer
       flag=i;
       pkt_buff[i]=pkt; //(struct nfq_data*) malloc(sizeof(struct nfq_data));
+      myqueue[i]=myQueue;
     }
   }
   if(flag == -1)
   {
     printf("no enough user space, DROP!\n");
+    unsigned int id = 0;
+
+    struct nfqnl_msg_packet_hdr *header;
+    if ((header = nfq_get_msg_packet_hdr(pkt))) {
+      id = ntohl(header->packet_id);
+    }
     return nfq_set_verdict(myQueue, id, NF_DROP, 0, NULL);
   }
   else
@@ -97,8 +105,12 @@ int consume_token(){
   return 0;
 }
 
-void *read_thread(void *fd)
+void *read_thread(void *recv_fd)
 {
+  //change recv_fd to int
+  int *c_fd;
+  c_fd=(int*)recv_fd;
+  int fd=*c_fd;
   //thread func to receive
   int res;
   char buf[BUF_SIZE];
@@ -128,7 +140,7 @@ void *read_thread(void *fd)
       }
       */
       check_time();
-      check_port;
+      check_port();
       nfq_handle_packet(nfqHandle, buf, res);
   }
 }
@@ -147,6 +159,8 @@ int *handle_thread()
         //get the pkt data and reset buff to NULL
         struct nfq_data *pkt=pkt_buff[i];
         pkt_buff[i]=NULL;
+        struct nfq_q_handle *myQueue=myqueue[i];
+        myqueue[i]=NULL;
         // Get the id in the queue
         unsigned int id = 0;
 
