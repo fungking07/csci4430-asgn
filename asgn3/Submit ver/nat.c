@@ -30,6 +30,7 @@ int fill_rate;
 unsigned int local_mask;
 unsigned int publicIP;
 int port_used[2001]={0};
+int num_token;
 
 int findport()
 {
@@ -165,6 +166,14 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
   
 }
 
+int consume_token(){
+  if(num_token > 0){
+    num_token--;
+    return 1;
+  }
+  return 0;
+}
+
 int main(int argc, char** argv) {
    
   //Check arguments
@@ -222,30 +231,25 @@ int main(int argc, char** argv) {
 
   printf("start receiving\n");
 
-  int millis_per_token = 1000 / fill_rate;
+  int millis_per_token = 1000 * fill_rate;
   time_t prev_time = time(NULL);
   time_t curr_time = time(NULL);
   int num_token = bucket_size;
 
-  // while (1) {
-  //   if(num_token > 0){
-  //     if((res = recv(fd, buf, sizeof(buf), 0)) && res >= 0){
-  //       num_token--;  
-  //       check_time();
-  //       nfq_handle_packet(nfqHandle, buf, res);
-  //     }
-  //   }
-  //   if(num_token == bucket_size){
-  //     prev_time = time(NULL);
-  //     continue;
-  //   }
-  //   curr_time = time(NULL);
-  //   if(curr_time - prev_time >= millis_per_token){
-  //     prev_time += millis_per_token;
-  //     num_token++;
-  //   }
-  // }
+  struct timespec tim1;
+  tim1.tv_sec = 0;
+  tim1.tv_nsec = 5000;
   while((res = recv(fd, buf, sizeof(buf), 0)) && res >= 0){
+      while(!consume_token()){
+        if(nanosleep(&tim1, &tim2) < 0){
+          printf("ERROR: nanosleep() system call failed!\n");
+        }
+        curr_time = time(NULL);
+        if(curr_time - prev_time >= millis_per_token){
+          prev_time = curr_time;
+          num_token++;
+        }
+      }
       check_time();
       nfq_handle_packet(nfqHandle, buf, res);
   }
