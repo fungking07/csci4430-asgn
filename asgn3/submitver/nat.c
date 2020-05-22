@@ -90,6 +90,7 @@ int findport()
   return -1;
 }
 
+<<<<<<< HEAD
 void check_port()
 {
   int i;
@@ -106,6 +107,8 @@ void check_port()
   }
 }
 
+=======
+>>>>>>> parent of 6f28cc1... fix bug
 static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
     struct nfq_data *pkt, void *cbData) {
   // Get the id in the queue
