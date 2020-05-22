@@ -31,50 +31,8 @@ unsigned int local_mask;
 unsigned int publicIP;
 int port_used[2001]={0};
 int num_token;
-PacketPool *ppool;
 pthread_t handle;
 pthread_t verdict;
-
-static void *read_thread(void *fd){
-  int fd;
-  fd = nfnl_fd(netlinkHandle);
-
-  int res;
-  char buf[BUF_SIZE];
-  int millis_per_token = 1000 * fill_rate;
-  time_t prev_time = time(NULL);
-  time_t curr_time = time(NULL);
-  int num_token = bucket_size;
-
-  struct timespec tim1, tim2;
-  tim1.tv_sec = 0;
-  tim1.tv_nsec = 5000;
-  while((res = recv(fd, buf, sizeof(buf), 0)) && res >= 0){
-    
-      /**while(!consume_token()){
-        if(nanosleep(&tim1, &tim2) < 0){
-          printf("ERROR: nanosleep() system call failed!\n");
-        }
-        curr_time = time(NULL);
-        if(curr_time - prev_time >= millis_per_token){
-          prev_time = curr_time;
-          num_token++;
-        }
-      }**/
-      
-      check_time();
-      check_port();
-      nfq_handle_packet(nfqHandle, buf, res);
-  }
-}
-
-static void *verdict_thread(void *fd){
-  for (;;) {
-    Packet p = fetch_packet_from_pool(ppool);
-    u_int32_t id = treat_pkt(pkt, &verdict); /* Treat packet */
-    nfq_set_verdict(nfQueue, id, verdict, 0, NULL); /* Verdict packet */
-  }
-}
 
 int findport()
 {
@@ -90,7 +48,6 @@ int findport()
   return -1;
 }
 
-<<<<<<< HEAD
 void check_port()
 {
   int i;
@@ -107,8 +64,6 @@ void check_port()
   }
 }
 
-=======
->>>>>>> parent of 6f28cc1... fix bug
 static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
     struct nfq_data *pkt, void *cbData) {
   // Get the id in the queue
@@ -286,6 +241,11 @@ int main(int argc, char** argv) {
   struct in_addr temp;
   inet_aton(public_ip,&temp);
   publicIP = ntohl(temp.s_addr);
+  int fd;
+  fd = nfnl_fd(netlinkHandle);
+
+  int res;
+  char buf[BUF_SIZE];
 
   printf("start receiving\n");
 
@@ -311,6 +271,7 @@ int main(int argc, char** argv) {
       }
       */
       check_time();
+      check_port;
       nfq_handle_packet(nfqHandle, buf, res);
   }
 
