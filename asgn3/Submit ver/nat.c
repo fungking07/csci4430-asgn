@@ -242,6 +242,7 @@ void *handle_thread()
             nfq_set_verdict(myQueue, id, NF_DROP, 0, NULL);
           }
         }
+        printf("end one pkt\n");
       }
     }
 
