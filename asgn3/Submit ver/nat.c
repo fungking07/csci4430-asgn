@@ -111,26 +111,26 @@ void *read_thread()
   // Get a queue connection handle from the module
   struct nfq_handle *nfqHandle;
   if (!(nfqHandle = nfq_open())) {
-    fprintf(stderr, "Error in nfq_open()\n");
+    printf("Error in nfq_open()\n");
     exit(-1);
   }
 
   // Unbind the handler from processing any IP packets
   if (nfq_unbind_pf(nfqHandle, AF_INET) < 0) {
-    fprintf(stderr, "Error in nfq_unbind_pf()\n");
+    printf("Error in nfq_unbind_pf()\n");
     exit(1);
   }
 
   // Install a callback on queue 0
   struct nfq_q_handle *nfQueue;
   if (!(nfQueue = nfq_create_queue(nfqHandle,  0, &Callback, NULL))) {
-    fprintf(stderr, "Error in nfq_create_queue()\n");
+    printf("Error in nfq_create_queue()\n");
     exit(1);
   }
   // nfq_set_mode: I want the entire packet 
   if(nfq_set_mode(nfQueue, NFQNL_COPY_PACKET, BUF_SIZE) < 0) {
-    fprintf(stderr, "Error in nfq_set_mode()\n");
-    exit(1);
+    printf("Error in nfq_set_mode()\n");
+    exit(-1);
   }
 
   struct nfnl_handle *netlinkHandle;
@@ -352,7 +352,7 @@ int main(int argc, char** argv) {
     printf("Fail to create handle_thread!\n");
     exit(-1);
   }
-  printf("nothing happened to read_thread\n");
+  printf("nothing happened to handle_thread\n");
 
 
   return 0;
