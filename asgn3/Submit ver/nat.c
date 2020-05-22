@@ -135,14 +135,6 @@ void *read_thread()
   struct nfnl_handle *netlinkHandle;
   netlinkHandle = nfq_nfnlh(nfqHandle);
 
-
-  //Key in the arguments
-  public_ip = argv[1];
-  internal_ip = argv[2];
-  subnet_mask = argv[3];
-  bucket_size = atoi(argv[4]);
-  fill_rate = atoi(argv[5]);
-
   
   //handle global var (char)public ip to (unsigned int)publicIP
   struct in_addr temp;
@@ -330,7 +322,12 @@ int main(int argc, char** argv) {
     fprintf(stderr, "Usage sudo ./nat <IP> <LAN> <MASK> <bucket size> <fill rate>");
     exit(1);
   }
-  //now we get the fd
+  //Key in the arguments
+  public_ip = argv[1];
+  internal_ip = argv[2];
+  subnet_mask = argv[3];
+  bucket_size = atoi(argv[4]);
+  fill_rate = atoi(argv[5]);
   //create a thread to receive and a thread to handle
   pthread_t receive;
   pthread_t handle;
