@@ -141,7 +141,7 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
     //do translation
     ipHeader->saddr = htonl(new_ip);
     udph->source = htons(new_port);
-    printf("Outbound:dest/src port after trans: %u / %u\n",(unsigned int)ntohs(udph->dest),(unsigned int)(ntohs(udph->source)));
+    //printf("Outbound:dest/src port after trans: %u / %u\n",(unsigned int)ntohs(udph->dest),(unsigned int)(ntohs(udph->source)));
 
     //re-calculate checksum
     udph->check=udp_checksum(pktData);
@@ -163,7 +163,7 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
       ipHeader->daddr = htonl(finder->src_ip);
       udph->dest = htons(finder->src_port);
 
-      printf("Inbound:dest/src port after trans: %u / %u\n",(unsigned int)ntohs(udph->dest),(unsigned int)(ntohs(udph->source)));
+      //printf("Inbound:dest/src port after trans: %u / %u\n",(unsigned int)ntohs(udph->dest),(unsigned int)(ntohs(udph->source)));
 
       //recalculate checksum
       udph->check = udp_checksum(pktData);
