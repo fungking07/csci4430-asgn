@@ -210,7 +210,6 @@ void *handle_thread()
 
           //this line may be rewrite for multi thread
           nfq_set_verdict(myQueue, id, NF_ACCEPT, ip_pkt_len, pktData);
-          continue;
         }
         else
         {
@@ -233,7 +232,7 @@ void *handle_thread()
 
             //this line may be rewrite for multi thread
             nfq_set_verdict(myQueue, id, NF_ACCEPT, ip_pkt_len, pktData);
-            continue;
+            printf("end one pkt\n");
           }
           else
           {
