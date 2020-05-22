@@ -340,16 +340,19 @@ int main(int argc, char** argv) {
   //create a thread to receive and a thread to handle
   pthread_t receive;
   pthread_t handle;
+  printf("tryint to create thread\n");
   if(pthread_create(&receive,NULL,read_thread, NULL))
   {
     printf("Fail to create read_thread!\n");
     exit(-1);
   }
+  printf("nothing happened to read_thread\n");
   if(pthread_create(&handle,NULL,handle_thread, NULL))
   {
     printf("Fail to create handle_thread!\n");
     exit(-1);
   }
+  printf("nothing happened to read_thread\n");
 
 
   return 0;
