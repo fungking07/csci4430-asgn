@@ -285,8 +285,35 @@ int main(int argc, char** argv) {
   publicIP = ntohl(temp.s_addr);
 
   printf("start receiving\n");
+<<<<<<< HEAD
   pthread_create(handle, NULL, read_thread, nfQueue);
   pthread_create(verdict, NULL, verdict_thread, nfQueue);
+=======
+
+  int millis_per_token = 1000 * fill_rate;
+  time_t prev_time = time(NULL);
+  time_t curr_time = time(NULL);
+  int num_token = bucket_size;
+
+  struct timespec tim1;
+  tim1.tv_sec = 0;
+  tim1.tv_nsec = 5000;
+  while((res = recv(fd, buf, sizeof(buf), 0)) && res >= 0){
+      while(!consume_token()){
+        if(nanosleep(&tim1, &tim2) < 0){
+          printf("ERROR: nanosleep() system call failed!\n");
+        }
+        curr_time = time(NULL);
+        if(curr_time - prev_time >= millis_per_token){
+          prev_time = curr_time;
+          num_token++;
+        }
+      }
+      check_time();
+      nfq_handle_packet(nfqHandle, buf, res);
+  }
+
+>>>>>>> parent of 48b5cb6... Merge branch 'master' of https://github.com/fungking07/CSCI4430-Asgns
 
   nfq_destroy_queue(nfQueue);
   nfq_close(nfqHandle);
