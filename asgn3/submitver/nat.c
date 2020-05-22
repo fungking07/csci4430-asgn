@@ -32,6 +32,8 @@ unsigned int publicIP;
 int port_used[2001]={0};
 int num_token;
 PacketPool *ppool;
+pthread_t handle;
+pthread_t verdict;
 
 static void *read_thread(void *fd){
   int millis_per_token = 1000 * fill_rate;
@@ -283,9 +285,8 @@ int main(int argc, char** argv) {
   publicIP = ntohl(temp.s_addr);
 
   printf("start receiving\n");
-
-  pthread_create(read_thread_id, NULL, read_thread, nfQueue);
-  pthread_create(write_thread_id, NULL, verdict_thread, nfQueue);
+  pthread_create(handle, NULL, read_thread, nfQueue);
+  pthread_create(verdict, NULL, verdict_thread, nfQueue);
 
   nfq_destroy_queue(nfQueue);
   nfq_close(nfqHandle);
