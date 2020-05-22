@@ -72,9 +72,9 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
   int flag=-1;
   for(i=0;i<10;i++)
   {
-    pthread_mutex_lock(&mutex);
     if(pkt_buff[i]==NULL)
     {
+      pthread_mutex_lock(&mutex);
       printf("Callback loop i=%d\n",i);
       //we have a place to handle, store to buffer
       flag=i;
@@ -120,9 +120,9 @@ void *handle_thread()
     int i;
     for(i=0;i<10;i++)
     {
-      pthread_mutex_lock(&mutex);
       if(pkt_buff[i]!=NULL)
       {
+        pthread_mutex_lock(&mutex);
         printf("handle thread , got pkt in i=%d\n",i);
         //get the pkt data and reset buff to NULL
         struct nfq_data *pkt=pkt_buff[i];
