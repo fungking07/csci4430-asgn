@@ -36,6 +36,11 @@ pthread_t handle;
 pthread_t verdict;
 
 static void *read_thread(void *fd){
+  int fd;
+  fd = nfnl_fd(netlinkHandle);
+
+  int res;
+  char buf[BUF_SIZE];
   int millis_per_token = 1000 * fill_rate;
   time_t prev_time = time(NULL);
   time_t curr_time = time(NULL);
@@ -265,11 +270,6 @@ int main(int argc, char** argv) {
   struct nfnl_handle *netlinkHandle;
   netlinkHandle = nfq_nfnlh(nfqHandle);
 
-  int fd;
-  fd = nfnl_fd(netlinkHandle);
-
-  int res;
-  char buf[BUF_SIZE];
 
   //Key in the arguments
   public_ip = argv[1];
