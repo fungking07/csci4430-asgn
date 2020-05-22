@@ -174,6 +174,8 @@ void *read_thread()
       check_port();
       nfq_handle_packet(nfqHandle, buf, res);
   }
+  nfq_destroy_queue(nfQueue);
+  nfq_close(nfqHandle);
 }
 
 int *handle_thread()
@@ -211,7 +213,8 @@ int *handle_thread()
         if (ipHeader->protocol != IPPROTO_UDP) {
           printf("Wrong protocol\n");
           //this line may be rewrite for multi thread
-          return nfq_set_verdict(myQueue, id, NF_DROP, 0, NULL);
+          nfq_set_verdict(myQueue, id, NF_DROP, 0, NULL);
+          continue;
         }
 
         //Get IP addr
@@ -276,7 +279,8 @@ int *handle_thread()
           ipHeader->check=ip_checksum(pktData);
 
           //this line may be rewrite for multi thread
-          return nfq_set_verdict(myQueue, id, NF_ACCEPT, ip_pkt_len, pktData);
+          nfq_set_verdict(myQueue, id, NF_ACCEPT, ip_pkt_len, pktData);
+          continue;
         }
         else
         {
@@ -298,13 +302,14 @@ int *handle_thread()
             ipHeader->check = ip_checksum(pktData);
 
             //this line may be rewrite for multi thread
-            return nfq_set_verdict(myQueue, id, NF_ACCEPT, ip_pkt_len, pktData);
+            nfq_set_verdict(myQueue, id, NF_ACCEPT, ip_pkt_len, pktData);
+            continue;
           }
           else
           {
             //404 NOT FOUND drop it
             //this line may be rewrite for multi thread
-            return nfq_set_verdict(myQueue, id, NF_DROP, 0, NULL);
+            nfq_set_verdict(myQueue, id, NF_DROP, 0, NULL);
           }
         }
       }
@@ -313,6 +318,7 @@ int *handle_thread()
     //take a short break
     usleep(10);
   }
+  pthread_exit(NULL);
 }
 
 int main(int argc, char** argv) {
@@ -347,7 +353,5 @@ int main(int argc, char** argv) {
   }
 
 
-  nfq_destroy_queue(nfQueue);
-  nfq_close(nfqHandle);
   return 0;
 }
