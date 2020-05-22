@@ -176,9 +176,10 @@ void *read_thread()
   }
   nfq_destroy_queue(nfQueue);
   nfq_close(nfqHandle);
+  pthread_exit(NULL);
 }
 
-int *handle_thread()
+void *handle_thread()
 {
   //thread func to handle
   while(1)
@@ -340,15 +341,11 @@ int main(int argc, char** argv) {
   if(pthread_create(&receive,NULL,read_thread, NULL))
   {
     printf("Fail to create read_thread!\n");
-    nfq_destroy_queue(nfQueue);
-    nfq_close(nfqHandle);
     exit(-1);
   }
   if(pthread_create(&handle,NULL,handle_thread, NULL))
   {
     printf("Fail to create handle_thread!\n");
-    nfq_destroy_queue(nfQueue);
-    nfq_close(nfqHandle);
     exit(-1);
   }
 
