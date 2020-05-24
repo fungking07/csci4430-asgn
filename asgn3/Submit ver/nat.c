@@ -113,7 +113,8 @@ double get_time(){ // in millisecond
 int consume_token(){
   curr_time = get_time();
   int time_diff = ((int)(curr_time - prev_time) % 1000000);
-  printf("fime diff: %d\n", time_diff);
+  printf("time in milli : %lf\n", curr_time - prev_time);
+  printf("time diff: %d\n", time_diff);
   if(time_diff){
     num_token += fill_rate * time_diff;
     prev_time += 1000 * time_diff;
