@@ -347,6 +347,7 @@ int main(int argc, char** argv) {
         if(nanosleep(&tim1, &tim2) < 0){
           printf("ERROR: nanosleep() system call failed!\n");
         }
+        printf("token: %d\n", num_token);
       }
       check_time();
       check_port();
