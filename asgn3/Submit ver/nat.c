@@ -113,26 +113,19 @@ double get_time(){ // in millisecond
 int consume_token(){
   curr_time = get_time();
   int time_diff = ((int)(curr_time - prev_time) / 1000);
-  printf("time in milli : %lf\n", curr_time - prev_time);
-  printf("time diff: %d\n", time_diff);
   if(time_diff){
     num_token += fill_rate * time_diff;
     prev_time += 1000 * time_diff;
     curr_time = get_time();
-    printf("a\n");
     if(num_token >= bucket_size){
       num_token = bucket_size;
       prev_time = get_time();
-      printf("b\n");
     }
   }
   if(num_token > 0){
     num_token--;
-    printf("c\n");
     return 1;
   }
-  printf("d\n");
-  printf("curr: %lf, prev: %lf, num: %d\n", curr_time, prev_time, num_token);
   return 0;
 }
 
@@ -158,19 +151,17 @@ void *handle_thread()
         pthread_mutex_unlock(&mutex);
         // Get the id in the queue
         unsigned int id = 0;
-printf("okll\n");
         struct nfqnl_msg_packet_hdr *header;
         if ((header = nfq_get_msg_packet_hdr(pkt))) {
           id = ntohl(header->packet_id);
         }
-printf("why?\n");
         // Access IP Packet
         unsigned char *pktData;
         int ip_pkt_len;
         ip_pkt_len = nfq_get_payload(pkt, &pktData);
         struct iphdr *ipHeader;
         ipHeader = (struct iphdr *)pktData;
-        printf("on\n");
+        
         //Drop non-UDP packet
         if (ipHeader->protocol != IPPROTO_UDP) {
           printf("Wrong protocol\n");
@@ -361,15 +352,10 @@ int main(int argc, char** argv) {
         if(nanosleep(&tim1, &tim2) < 0){
           printf("ERROR: nanosleep() system call failed!\n");
         }
-        printf("token: %d\n", num_token);
       }
-      printf("p\n");
       check_time();
-      printf("q\n");
       check_port();
-      printf("r\n");
       nfq_handle_packet(nfqHandle, buf, res);
-      printf("s\n");
   }
   pthread_mutex_destroy(&mutex);
   nfq_destroy_queue(nfQueue);
