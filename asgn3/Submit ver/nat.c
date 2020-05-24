@@ -105,7 +105,7 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
 }
 
 double get_time(){ // in millisecond
-  double t;
+  struct timeval t;
   gettimeofday(&t, NULL);
   return t.tv_sec * 1000 + (t.tv_usec) / 1000;
 }
