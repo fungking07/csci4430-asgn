@@ -363,9 +363,13 @@ int main(int argc, char** argv) {
         }
         printf("token: %d\n", num_token);
       }
+      printf("p\n");
       check_time();
+      printf("q\n");
       check_port();
+      printf("r\n");
       nfq_handle_packet(nfqHandle, buf, res);
+      printf("s\n");
   }
   pthread_mutex_destroy(&mutex);
   nfq_destroy_queue(nfQueue);
