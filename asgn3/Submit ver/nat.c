@@ -336,7 +336,7 @@ int main(int argc, char** argv) {
   printf("start receiving\n");
 
   prev_time = time(NULL);
-  int num_token = bucket_size;
+  num_token = bucket_size;
 
   struct timespec tim1, tim2;
   tim1.tv_sec = 0;
