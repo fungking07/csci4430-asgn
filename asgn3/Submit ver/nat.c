@@ -106,6 +106,7 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
 
 int consume_token(){
   curr_time = time(NULL);
+  printf("c: %ld p: %ld\n", curr_time, prev_time);
   while(curr_time - prev_time > 1000){
     prev_time += 1000;
     num_token += fill_rate;
