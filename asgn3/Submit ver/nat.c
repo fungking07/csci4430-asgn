@@ -154,7 +154,6 @@ void *handle_thread()
         pkt_buff[i]=NULL;
         struct nfq_q_handle *myQueue=myqueue[i];
         myqueue[i]=NULL;
-        printf("before lock\n");
         pthread_mutex_unlock(&mutex);
         // Get the id in the queue
         unsigned int id = 0;
@@ -163,14 +162,14 @@ printf("okll\n");
         if ((header = nfq_get_msg_packet_hdr(pkt))) {
           id = ntohl(header->packet_id);
         }
-
+printf("why?\n");
         // Access IP Packet
         unsigned char *pktData;
         int ip_pkt_len;
         ip_pkt_len = nfq_get_payload(pkt, &pktData);
         struct iphdr *ipHeader;
         ipHeader = (struct iphdr *)pktData;
-        
+        printf("on\n");
         //Drop non-UDP packet
         if (ipHeader->protocol != IPPROTO_UDP) {
           printf("Wrong protocol\n");
