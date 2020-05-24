@@ -31,8 +31,8 @@ unsigned int local_mask;
 unsigned int publicIP;
 int port_used[2001]={0};
 int num_token;
-struct timeval prev_time;
-struct timeval curr_time;
+double prev_time;
+double curr_time;
 struct nfq_data *pkt_buff[10]={NULL};    //to store packet data for multi thread
 struct nfq_q_handle *myqueue[10]={NULL};  //to store queue info
 pthread_mutex_t mutex;
@@ -104,21 +104,22 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
   
 }
 
-double mil_time(struct timeval t){
+double get_time(){ // in millisecond
+  double t;
+  gettimeofday(&t, NULL);
   return t.tv_sec * 1000 + (t.tv_usec) / 1000;
 }
 
 int consume_token(){
-  gettimeofday(&curr_time,NULL);
-  printf("c: %ld p: %ld\n", curr_time, prev_time);
-  while(mil_time(curr_time) - mil_time(prev_time) > 1000){
+  curr_time = get_time();
+  while(curr_time - prev_time > 1000){
     prev_time += 1000;
     num_token += fill_rate;
-    gettimeofday(&curr_time,NULL);
+    curr_time = get_time();
     printf("a\n");
     if(num_token >= bucket_size){
       num_token = bucket_size;
-      gettimeofday(&prev_time,NULL);
+      prev_time = get_time();
       printf("b\n");
       break;
     }
@@ -345,7 +346,7 @@ int main(int argc, char** argv) {
 
   printf("start receiving\n");
 
-  gettimeofday(&prev_time,NULL);
+  prev_time = get_time();
   num_token = bucket_size;
 
   struct timespec tim1, tim2;
