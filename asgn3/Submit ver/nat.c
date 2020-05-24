@@ -162,7 +162,7 @@ void *handle_thread()
         if ((header = nfq_get_msg_packet_hdr(pkt))) {
           id = ntohl(header->packet_id);
         }
-
+printf("ooo\n");
         // Access IP Packet
         unsigned char *pktData;
         int ip_pkt_len;
@@ -196,7 +196,7 @@ void *handle_thread()
         struct in_addr tmp;
         inet_aton(internal_ip, &tmp);
         uint32_t local_network = ntohl(tmp.s_addr) & local_mask;
-
+printf("hhh\n");
         //check in or out bound
         if((src_ip & local_mask) == local_network)
         {
