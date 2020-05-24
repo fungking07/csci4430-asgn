@@ -112,7 +112,7 @@ double get_time(){ // in millisecond
 
 int consume_token(){
   curr_time = get_time();
-  while(curr_time - prev_time > 1000){
+  if(curr_time - prev_time > 1000){
     prev_time += 1000;
     num_token += fill_rate;
     curr_time = get_time();
@@ -121,7 +121,6 @@ int consume_token(){
       num_token = bucket_size;
       prev_time = get_time();
       printf("b\n");
-      break;
     }
   }
   if(num_token > 0){
@@ -355,11 +354,9 @@ int main(int argc, char** argv) {
 
   while((res = recv(fd, buf, sizeof(buf), 0)) && res >= 0){
       while(!consume_token()){
-        printf("start: %ld\n", time(NULL));
         if(nanosleep(&tim1, &tim2) < 0){
           printf("ERROR: nanosleep() system call failed!\n");
         }
-        printf("start: %ld\n", time(NULL));
         printf("token: %d\n", num_token);
       }
       check_time();
