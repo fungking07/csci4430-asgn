@@ -132,6 +132,7 @@ int consume_token(){
     return 1;
   }
   printf("d\n");
+  printf("curr: %lf, prev: %lf, num: %d\n", curr_time, prev_time, num_token);
   return 0;
 }
 
