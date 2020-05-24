@@ -112,9 +112,11 @@ double get_time(){ // in millisecond
 
 int consume_token(){
   curr_time = get_time();
-  if(curr_time - prev_time > 1000){
-    prev_time += 1000;
-    num_token += fill_rate;
+  int time_diff = ((curr_time - prev_time) % 1000);
+  printf("fime diff: %d\n", time_diff);
+  if(time_diff){
+    num_token += fill_rate * time_diff;
+    prev_time += 1000 * time_diff;
     curr_time = get_time();
     printf("a\n");
     if(num_token >= bucket_size){
