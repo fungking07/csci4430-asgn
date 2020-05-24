@@ -31,6 +31,8 @@ unsigned int local_mask;
 unsigned int publicIP;
 int port_used[2001]={0};
 int num_token;
+time_t prev_time;
+time_t curr_time;
 struct nfq_data *pkt_buff[10]={NULL};    //to store packet data for multi thread
 struct nfq_q_handle *myqueue[10]={NULL};  //to store queue info
 pthread_mutex_t mutex;
@@ -103,6 +105,16 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
 }
 
 int consume_token(){
+  curr_time = time(NULL);
+  while(curr_time - prev_time > 1000){
+    prev_time += 1000;
+    num_token += fill_rate;
+    curr_time = time(NULL);
+    if(num_token >= bucket_size){
+      num_token = bucket_size;
+      prev_time = time(NULL);
+    }
+  }
   if(num_token > 0){
     num_token--;
     return 1;
@@ -323,28 +335,19 @@ int main(int argc, char** argv) {
 
   printf("start receiving\n");
 
-  int millis_per_token = 1000 * fill_rate;
-  time_t prev_time = time(NULL);
-  time_t curr_time = time(NULL);
+  prev_time = time(NULL);
   int num_token = bucket_size;
 
-  struct timespec tim1;
+  struct timespec tim1, tim2;
   tim1.tv_sec = 0;
   tim1.tv_nsec = 5000;
 
   while((res = recv(fd, buf, sizeof(buf), 0)) && res >= 0){
-    /*
       while(!consume_token()){
         if(nanosleep(&tim1, &tim2) < 0){
           printf("ERROR: nanosleep() system call failed!\n");
         }
-        curr_time = time(NULL);
-        if(curr_time - prev_time >= millis_per_token){
-          prev_time = curr_time;
-          num_token++;
-        }
       }
-      */
       check_time();
       check_port();
       nfq_handle_packet(nfqHandle, buf, res);
