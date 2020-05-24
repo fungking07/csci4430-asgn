@@ -154,15 +154,16 @@ void *handle_thread()
         pkt_buff[i]=NULL;
         struct nfq_q_handle *myQueue=myqueue[i];
         myqueue[i]=NULL;
+        printf("before lock\n");
         pthread_mutex_unlock(&mutex);
         // Get the id in the queue
         unsigned int id = 0;
-
+printf("okll\n");
         struct nfqnl_msg_packet_hdr *header;
         if ((header = nfq_get_msg_packet_hdr(pkt))) {
           id = ntohl(header->packet_id);
         }
-printf("ooo\n");
+
         // Access IP Packet
         unsigned char *pktData;
         int ip_pkt_len;
@@ -196,7 +197,7 @@ printf("ooo\n");
         struct in_addr tmp;
         inet_aton(internal_ip, &tmp);
         uint32_t local_network = ntohl(tmp.s_addr) & local_mask;
-printf("hhh\n");
+
         //check in or out bound
         if((src_ip & local_mask) == local_network)
         {
