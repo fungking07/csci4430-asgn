@@ -113,25 +113,19 @@ double get_time(){ // in millisecond
 int consume_token(){
   curr_time = get_time();
   int time_diff = ((int)(curr_time - prev_time) / 1000);
-  printf("time in milli : %lf\n", curr_time - prev_time);
-  printf("time diff: %d\n", time_diff);
   if(time_diff){
     num_token += fill_rate * time_diff;
     prev_time += 1000 * time_diff;
     curr_time = get_time();
-    printf("a\n");
     if(num_token >= bucket_size){
       num_token = bucket_size;
       prev_time = get_time();
-      printf("b\n");
     }
   }
   if(num_token > 0){
     num_token--;
-    printf("c\n");
     return 1;
   }
-  printf("d\n");
   return 0;
 }
 
@@ -360,7 +354,6 @@ int main(int argc, char** argv) {
         if(nanosleep(&tim1, &tim2) < 0){
           printf("ERROR: nanosleep() system call failed!\n");
         }
-        printf("token: %d\n", num_token);
       }
       check_time();
       check_port();
