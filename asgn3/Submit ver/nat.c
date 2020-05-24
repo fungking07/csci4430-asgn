@@ -110,15 +110,19 @@ int consume_token(){
     prev_time += 1000;
     num_token += fill_rate;
     curr_time = time(NULL);
+    printf("a\n");
     if(num_token >= bucket_size){
       num_token = bucket_size;
       prev_time = time(NULL);
+      printf("b\n");
     }
   }
   if(num_token > 0){
     num_token--;
+    printf("c\n");
     return 1;
   }
+  printf("d\n");
   return 0;
 }
 
