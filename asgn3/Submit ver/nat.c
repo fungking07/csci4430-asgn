@@ -121,22 +121,22 @@ int consume_token(){
   else{
     curr_time = get_time();
     int time_diff = ((int)(curr_time - prev_time) / 1000);
-    printf("time_diff = %d\n", time_diff);
+    //printf("time_diff = %d\n", time_diff);
     if(time_diff){
-      printf("refill %d time now\n", time_diff);
+      //printf("refill %d time now\n", time_diff);
       num_token += fill_rate * time_diff;
       prev_time += 1000 * time_diff;
       if(num_token >= bucket_size){
         num_token = bucket_size;
         prev_time = get_time();
         curr_time = get_time();
-        printf("full bucket\n");
+        //printf("full bucket\n");
       }
       num_token--;
       have_token = 1;
     }
   }
-  printf("%d token in bucket\n", num_token);
+  //printf("%d token in bucket\n", num_token);
   pthread_mutex_unlock(&mutex);
   return have_token;
 }
@@ -152,7 +152,7 @@ void get_token(){
       exit(1);
     }
   }
-  printf("eat a token\n");
+  //printf("eat a token\n");
 }
 
 void *handle_thread()
@@ -168,7 +168,7 @@ void *handle_thread()
       if(pkt_buff[i]!=NULL)
       {
         pthread_mutex_lock(&mutex);
-        printf("handle thread , got pkt in i=%d\n",i);
+        //printf("handle thread , got pkt in i=%d\n",i);
         //get the pkt data and reset buff to NULL
         struct nfq_data *pkt=pkt_buff[i];
         pkt_buff[i]=NULL;
@@ -283,7 +283,7 @@ void *handle_thread()
 
             //this line may be rewrite for multi thread
             nfq_set_verdict(myQueue, id, NF_ACCEPT, ip_pkt_len, pktData);
-            printf("end one pkt\n");
+            //printf("end one pkt\n");
           }
           else
           {
@@ -292,7 +292,7 @@ void *handle_thread()
             nfq_set_verdict(myQueue, id, NF_DROP, 0, NULL);
           }
         }
-        printf("end one pkt\n");
+        //printf("end one pkt\n");
       }
     }
 
@@ -368,7 +368,7 @@ int main(int argc, char** argv) {
     exit(-1);
   }
 
-  printf("start receiving\n");
+  //printf("start receiving\n");
 
   while((res = recv(fd, buf, sizeof(buf), 0)) && res >= 0){
       get_token();
