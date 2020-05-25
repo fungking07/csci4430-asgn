@@ -350,11 +350,11 @@ int main(int argc, char** argv) {
   tim1.tv_nsec = 5000;
 
   while((res = recv(fd, buf, sizeof(buf), 0)) && res >= 0){
-      // while(!consume_token()){
-      //   if(nanosleep(&tim1, &tim2) < 0){
-      //     printf("ERROR: nanosleep() system call failed!\n");
-      //   }
-      // }
+      while(!consume_token()){
+        if(nanosleep(&tim1, &tim2) < 0){
+          printf("ERROR: nanosleep() system call failed!\n");
+        }
+      }
       check_time();
       check_port();
       nfq_handle_packet(nfqHandle, buf, res);
