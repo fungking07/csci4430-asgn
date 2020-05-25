@@ -162,12 +162,11 @@ void *handle_thread()
         int ip_pkt_len;
         ip_pkt_len = nfq_get_payload(pkt, &pktData);
         struct iphdr *ipHeader;
+        printf("pktData: %c\n", pktData);
         ipHeader = (struct iphdr *)pktData;
         
         //Drop non-UDP packet
-          printf("ipHeader->protocol %d\n", ipHeader->protocol);
         if (ipHeader->protocol != IPPROTO_UDP) {
-          printf("ipHeader->protocol %d\n", ipHeader->protocol);
           printf("Wrong protocol\n");
           //this line may be rewrite for multi thread
           nfq_set_verdict(myQueue, id, NF_DROP, 0, NULL);
