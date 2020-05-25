@@ -368,7 +368,7 @@ int main(int argc, char** argv) {
   pthread_t handle;
   if(pthread_create(&handle,NULL,handle_thread, NULL))
   {
-    //printf("Fail to create handle_thread!\n");
+    printf("Fail to create handle_thread!\n");
     exit(-1);
   }
 
