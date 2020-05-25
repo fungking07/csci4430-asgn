@@ -113,6 +113,7 @@ double get_time(){ // in millisecond
 
 int consume_token(){
   int have_token = 0;
+  pthread_mutex_init(&bucket, NULL);
   pthread_mutex_lock(&bucket);
   if(num_token > 0){
     num_token--;
@@ -126,10 +127,14 @@ int consume_token(){
       prev_time += 1000 * time_diff;
       if(num_token >= bucket_size){
         num_token = bucket_size;
+        prev_time = get_time();
+        curr_time = get_time();
       }
-      prev_time = curr_time;
+      num_token--;
+      have_token = 1;
     }
   }
+  printf("%d token in bucket\n");
   pthread_mutex_unlock(&bucket);
   return have_token;
 }
@@ -306,7 +311,6 @@ int main(int argc, char** argv) {
 
   //initialize mutex
   pthread_mutex_init(&mutex,NULL);
-  pthread_mutex_init(&bucket, NULL);
 
   // Get a queue connection handle from the module
   struct nfq_handle *nfqHandle;
