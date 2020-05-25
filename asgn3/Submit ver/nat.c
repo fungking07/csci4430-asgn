@@ -123,18 +123,20 @@ int consume_token(){
     curr_time = get_time();
     int time_diff = ((int)(curr_time - prev_time) / 1000);
     if(time_diff){
+      printf("refill %d time now\n", time_diff);
       num_token += fill_rate * time_diff;
       prev_time += 1000 * time_diff;
       if(num_token >= bucket_size){
         num_token = bucket_size;
         prev_time = get_time();
         curr_time = get_time();
+        printf("full bucket\n");
       }
       num_token--;
       have_token = 1;
     }
   }
-  printf("%d token in bucket\n");
+  printf("%d token in bucket\n", num_token);
   pthread_mutex_unlock(&bucket);
   return have_token;
 }
