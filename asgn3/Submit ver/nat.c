@@ -122,6 +122,7 @@ int consume_token(){
   else{
     curr_time = get_time();
     int time_diff = ((int)(curr_time - prev_time) / 1000);
+    printf("time_diff = %d\n", time_diff);
     if(time_diff){
       printf("refill %d time now\n", time_diff);
       num_token += fill_rate * time_diff;
@@ -142,8 +143,6 @@ int consume_token(){
 }
 
 void get_token(){
-  prev_time = get_time();
-  num_token = bucket_size;
 
   struct timespec tim1, tim2;
   tim1.tv_sec = 0;
@@ -348,6 +347,8 @@ int main(int argc, char** argv) {
   subnet_mask = argv[3];
   bucket_size = atoi(argv[4]);
   fill_rate = atoi(argv[5]);
+  num_token = bucket_size;
+  prev_time = get_time();
 
   //handle global var (char)public ip to (unsigned int)publicIP
   struct in_addr temp;
