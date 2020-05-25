@@ -113,8 +113,7 @@ double get_time(){ // in millisecond
 
 int consume_token(){
   int have_token = 0;
-  pthread_mutex_init(&bucket, NULL);
-  pthread_mutex_lock(&bucket);
+  pthread_mutex_lock(&mutex);
   if(num_token > 0){
     num_token--;
     have_token = 1;
@@ -138,7 +137,7 @@ int consume_token(){
     }
   }
   printf("%d token in bucket\n", num_token);
-  pthread_mutex_unlock(&bucket);
+  pthread_mutex_unlock(&mutex);
   return have_token;
 }
 
