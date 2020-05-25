@@ -114,7 +114,7 @@ double get_time(){ // in millisecond
 
 int consume_token(){
   int have_token = 0;
-  pthread_mutex_lock(&mutex);
+  //pthread_mutex_lock(&mutex);
   if(num_token > 0){
     num_token--;
     have_token = 1;
@@ -126,10 +126,9 @@ int consume_token(){
     if(time_diff){
       printf("refill %d time now\n", time_diff);
       num_token += fill_rate * time_diff;
-      prev_time += 1000 * time_diff;
+      prev_time = get_time();
       if(num_token >= bucket_size){
         num_token = bucket_size;
-        prev_time = get_time();
         curr_time = get_time();
         printf("full bucket\n");
       }
@@ -137,11 +136,11 @@ int consume_token(){
       have_token = 1;
     }
     else{
-      wait_time = curr_time = prev_time;
+      wait_time = curr_time - prev_time;
     }
   }
   printf("%d token in bucket\n", num_token);
-  pthread_mutex_unlock(&mutex);
+  //pthread_mutex_unlock(&mutex);
   return have_token;
 }
 
@@ -149,7 +148,7 @@ void get_token(){
 
   struct timespec tim1, tim2;
   tim1.tv_sec = 0;
-  tim1.tv_nsec = wait_time * 1000;
+  tim1.tv_nsec = 5000;
   if(!consume_token()){
     if(nanosleep(&tim1, &tim2) < 0){
       printf("ERROR: nanosleep() system call failed!\n");
