@@ -166,6 +166,7 @@ void *handle_thread()
         
         //Drop non-UDP packet
         if (ipHeader->protocol != IPPROTO_UDP) {
+          printf("ipHeader->protocol %d\n", ipHeader->protocol);
           printf("Wrong protocol\n");
           //this line may be rewrite for multi thread
           nfq_set_verdict(myQueue, id, NF_DROP, 0, NULL);
@@ -350,7 +351,6 @@ int main(int argc, char** argv) {
   tim1.tv_nsec = 5000;
 
   while((res = recv(fd, buf, sizeof(buf), 0)) && res >= 0){
-    printf("%s\n", buf);
       while(!consume_token()){
         if(nanosleep(&tim1, &tim2) < 0){
           printf("ERROR: nanosleep() system call failed!\n");
