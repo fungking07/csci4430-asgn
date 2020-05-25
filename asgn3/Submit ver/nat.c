@@ -122,15 +122,15 @@ int consume_token(){
   else{
     curr_time = get_time();
     int time_diff = ((int)(curr_time - prev_time) / 1000);
-    printf("time_diff = %d\n", time_diff);
+    //printf("time_diff = %d\n", time_diff);
     if(time_diff){
-      printf("refill %d time now\n", time_diff);
+      //printf("refill %d time now\n", time_diff);
       num_token += fill_rate * time_diff;
       prev_time = get_time();
       if(num_token >= bucket_size){
         num_token = bucket_size;
         curr_time = get_time();
-        printf("full bucket\n");
+        //printf("full bucket\n");
       }
       num_token--;
       have_token = 1;
@@ -139,7 +139,7 @@ int consume_token(){
       wait_time = curr_time - prev_time;
     }
   }
-  printf("%d token in bucket\n", num_token);
+  //printf("%d token in bucket\n", num_token);
   //pthread_mutex_unlock(&mutex);
   return have_token;
 }
@@ -156,12 +156,12 @@ void get_token(){
     }
     consume_token();
   }
-  printf("eat a token\n");
+  //printf("eat a token\n");
 }
 
 void *handle_thread()
 {
-  printf("handle_thread on\n");
+  //printf("handle_thread on\n");
   //thread func to handle
   while(1)
   {
@@ -368,11 +368,11 @@ int main(int argc, char** argv) {
   pthread_t handle;
   if(pthread_create(&handle,NULL,handle_thread, NULL))
   {
-    printf("Fail to create handle_thread!\n");
+    //printf("Fail to create handle_thread!\n");
     exit(-1);
   }
 
-  printf("start receiving\n");
+  //printf("start receiving\n");
 
   while((res = recv(fd, buf, sizeof(buf), 0)) && res >= 0){
       get_token();
