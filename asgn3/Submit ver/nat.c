@@ -79,7 +79,7 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
     if(pkt_buff[i]==NULL)
     {
       pthread_mutex_lock(&mutex);
-      printf("Callback loop i=%d\n",i);
+      //printf("Callback loop i=%d\n",i);
       //we have a place to handle, store to buffer
       flag=i;
       pkt_buff[i]=pkt; //(struct nfq_data*) malloc(sizeof(struct nfq_data));
@@ -90,7 +90,7 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
   }
   if(flag == -1)
   {
-    printf("no enough user space, DROP!\n");
+    //printf("no enough user space, DROP!\n");
     unsigned int id = 0;
 
     struct nfqnl_msg_packet_hdr *header;
@@ -172,7 +172,7 @@ void *handle_thread()
       if(pkt_buff[i]!=NULL)
       {
         pthread_mutex_lock(&mutex);
-        printf("handle thread , got pkt in i=%d\n",i);
+        //printf("handle thread , got pkt in i=%d\n",i);
         //get the pkt data and reset buff to NULL
         struct nfq_data *pkt=pkt_buff[i];
         pkt_buff[i]=NULL;
@@ -196,7 +196,7 @@ void *handle_thread()
         
         //Drop non-UDP packet
         if (ipHeader->protocol != IPPROTO_UDP) {
-          printf("Wrong protocol\n");
+          //printf("Wrong protocol\n");
           //this line may be rewrite for multi thread
           nfq_set_verdict(myQueue, id, NF_DROP, 0, NULL);
           continue;
@@ -287,7 +287,7 @@ void *handle_thread()
 
             //this line may be rewrite for multi thread
             nfq_set_verdict(myQueue, id, NF_ACCEPT, ip_pkt_len, pktData);
-            printf("end one pkt\n");
+            //printf("end one pkt\n");
           }
           else
           {
@@ -296,7 +296,7 @@ void *handle_thread()
             nfq_set_verdict(myQueue, id, NF_DROP, 0, NULL);
           }
         }
-        printf("end one pkt\n");
+        //printf("end one pkt\n");
       }
     }
 
