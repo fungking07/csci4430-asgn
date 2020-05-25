@@ -112,34 +112,42 @@ double get_time(){ // in millisecond
 }
 
 int consume_token(){
+  int have_token = 0;
   pthread_mutex_lock(&bucket);
-  curr_time = get_time();
-  int time_diff = ((int)(curr_time - prev_time) / 1000);
-  if(time_diff){
-    num_token += fill_rate * time_diff;
-    prev_time += 1000 * time_diff;
+  if(num_token > 0){
+    num_token--;
+    have_token = 1;
+  }
+  else{
     curr_time = get_time();
-    if(num_token >= bucket_size){
-      num_token = bucket_size;
-      prev_time = get_time();
+    int time_diff = ((int)(curr_time - prev_time) / 1000);
+    if(time_diff){
+      num_token += fill_rate * time_diff;
+      prev_time += 1000 * time_diff;
+      if(num_token >= bucket_size){
+        num_token = bucket_size;
+      }
+      prev_time = curr_time;
     }
   }
   pthread_mutex_unlock(&bucket);
-  if(num_token > 0){
-    num_token--;
-    return 1;
-  }
-  return 0;
+  return have_token;
 }
 
-void get_token()[
+void get_token(){
+  prev_time = get_time();
+  num_token = bucket_size;
+
+  struct timespec tim1, tim2;
+  tim1.tv_sec = 0;
+  tim1.tv_nsec = 5000;
   while(!consume_token()){
     if(nanosleep(&tim1, &tim2) < 0){
       printf("ERROR: nanosleep() system call failed!\n");
       exit(1);
     }
   }
-]
+}
 
 void *handle_thread()
 {
@@ -354,13 +362,6 @@ int main(int argc, char** argv) {
   }
 
   printf("start receiving\n");
-
-  prev_time = get_time();
-  num_token = bucket_size;
-
-  struct timespec tim1, tim2;
-  tim1.tv_sec = 0;
-  tim1.tv_nsec = 5000;
 
   while((res = recv(fd, buf, sizeof(buf), 0)) && res >= 0){
       get_token();
