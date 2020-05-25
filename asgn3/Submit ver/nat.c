@@ -151,8 +151,8 @@ void get_token(){
       printf("ERROR: nanosleep() system call failed!\n");
       exit(1);
     }
-    printf("eat a token\n");
   }
+  printf("eat a token\n");
 }
 
 void *handle_thread()
