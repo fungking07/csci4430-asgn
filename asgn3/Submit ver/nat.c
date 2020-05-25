@@ -162,7 +162,7 @@ void *handle_thread()
         int ip_pkt_len;
         ip_pkt_len = nfq_get_payload(pkt, &pktData);
         struct iphdr *ipHeader;
-        printf("pktData: %c\n", pktData);
+        printf("pktData: %d\n", pktData);
         ipHeader = (struct iphdr *)pktData;
         
         //Drop non-UDP packet
