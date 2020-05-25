@@ -204,7 +204,7 @@ void *handle_thread()
 
         //Get IP addr
         uint32_t src_ip = ntohl(ipHeader->saddr);
-        uint32_t dest_ip=ntohl(ipHeader->daddr);
+        //uint32_t dest_ip=ntohl(ipHeader->daddr);
 
         //Access UDP Packet
         struct udphdr *udph;
