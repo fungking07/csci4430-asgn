@@ -355,7 +355,6 @@ int main(int argc, char** argv) {
 
   while((res = recv(fd, buf, sizeof(buf), 0)) && res >= 0){
       while(!consume_token()){
-        printf("go to sleep\n");
         if(nanosleep(&tim1, &tim2) < 0){
           printf("ERROR: nanosleep() system call failed!\n");
         }
