@@ -33,6 +33,7 @@ int port_used[2001]={0};
 int num_token;
 double prev_time;
 double curr_time;
+double wait_time;
 struct nfq_data *pkt_buff[10]={NULL};    //to store packet data for multi thread
 struct nfq_q_handle *myqueue[10]={NULL};  //to store queue info
 pthread_mutex_t mutex;
@@ -135,6 +136,9 @@ int consume_token(){
       num_token--;
       have_token = 1;
     }
+    else{
+      wait_time = curr_time = prev_time;
+    }
   }
   printf("%d token in bucket\n", num_token);
   pthread_mutex_unlock(&mutex);
@@ -145,12 +149,13 @@ void get_token(){
 
   struct timespec tim1, tim2;
   tim1.tv_sec = 0;
-  tim1.tv_nsec = 5000;
-  while(!consume_token()){
+  tim1.tv_nsec = wait_time * 1000;
+  if(!consume_token()){
     if(nanosleep(&tim1, &tim2) < 0){
       printf("ERROR: nanosleep() system call failed!\n");
       exit(1);
     }
+    consume_token();
   }
   printf("eat a token\n");
 }
