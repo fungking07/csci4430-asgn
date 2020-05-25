@@ -376,9 +376,7 @@ int main(int argc, char** argv) {
   printf("start receiving\n");
 
   while((res = recv(fd, buf, sizeof(buf), 0)) && res >= 0){
-      pthread_mutex_lock(handle);
       get_token();
-      pthread_mutex_unlock(handle);
       check_time();
       check_port();
       nfq_handle_packet(nfqHandle, buf, res);
