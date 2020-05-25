@@ -132,6 +132,15 @@ int consume_token(){
   return 0;
 }
 
+void get_token()[
+  while(!consume_token()){
+    if(nanosleep(&tim1, &tim2) < 0){
+      printf("ERROR: nanosleep() system call failed!\n");
+      exit(1);
+    }
+  }
+]
+
 void *handle_thread()
 {
   printf("handle_thread on\n");
@@ -354,16 +363,13 @@ int main(int argc, char** argv) {
   tim1.tv_nsec = 5000;
 
   while((res = recv(fd, buf, sizeof(buf), 0)) && res >= 0){
-      while(!consume_token()){
-        if(nanosleep(&tim1, &tim2) < 0){
-          printf("ERROR: nanosleep() system call failed!\n");
-        }
-      }
+      get_token();
       check_time();
       check_port();
       nfq_handle_packet(nfqHandle, buf, res);
   }
   pthread_mutex_destroy(&mutex);
+  pthread_mutex_destroy(&bucket);
   nfq_destroy_queue(nfQueue);
   nfq_close(nfqHandle);
 
