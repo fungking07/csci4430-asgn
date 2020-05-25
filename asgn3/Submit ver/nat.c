@@ -36,6 +36,7 @@ double curr_time;
 struct nfq_data *pkt_buff[10]={NULL};    //to store packet data for multi thread
 struct nfq_q_handle *myqueue[10]={NULL};  //to store queue info
 pthread_mutex_t mutex;
+pthread_mutex_t bucket;
 
 int findport()
 {
@@ -111,6 +112,7 @@ double get_time(){ // in millisecond
 }
 
 int consume_token(){
+  pthread_mutex_lock(&bucket);
   curr_time = get_time();
   int time_diff = ((int)(curr_time - prev_time) / 1000);
   if(time_diff){
@@ -122,6 +124,7 @@ int consume_token(){
       prev_time = get_time();
     }
   }
+  pthread_mutex_unlock(&bucket);
   if(num_token > 0){
     num_token--;
     return 1;
@@ -162,7 +165,6 @@ void *handle_thread()
         int ip_pkt_len;
         ip_pkt_len = nfq_get_payload(pkt, &pktData);
         struct iphdr *ipHeader;
-        printf("pktData: %d\n", pktData);
         ipHeader = (struct iphdr *)pktData;
         
         //Drop non-UDP packet
@@ -287,6 +289,7 @@ int main(int argc, char** argv) {
 
   //initialize mutex
   pthread_mutex_init(&mutex,NULL);
+  pthread_mutex_init(&bucket, NULL);
 
   // Get a queue connection handle from the module
   struct nfq_handle *nfqHandle;
@@ -352,6 +355,7 @@ int main(int argc, char** argv) {
 
   while((res = recv(fd, buf, sizeof(buf), 0)) && res >= 0){
       while(!consume_token()){
+        printf("go to sleep\n");
         if(nanosleep(&tim1, &tim2) < 0){
           printf("ERROR: nanosleep() system call failed!\n");
         }
