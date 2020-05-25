@@ -165,6 +165,7 @@ void *handle_thread()
         ipHeader = (struct iphdr *)pktData;
         
         //Drop non-UDP packet
+          printf("ipHeader->protocol %d\n", ipHeader->protocol);
         if (ipHeader->protocol != IPPROTO_UDP) {
           printf("ipHeader->protocol %d\n", ipHeader->protocol);
           printf("Wrong protocol\n");
